@@ -1,7 +1,7 @@
-# K-OSS Directory — 기획서 (PRD v0.1)
+# K-OSS Directory — 기획서 (PRD v0.2)
 
 > 한국 개발자가 만든, 한국어로 쓸 수 있는 오픈소스를 한 화면에서 찾는 디렉토리.
-> 저장소: `YunhuPark/k-oss-directory` · 작성일 2026-11-26 · 상태: MVP 구현 착수
+> 저장소: `YunhuPark/k-oss-directory` · 작성일 2026-11-26 · v0.2 갱신 2026-11-26 · 상태: 40개 수록 · Cloudflare Pages 배포
 
 ---
 
@@ -31,7 +31,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 1. **국산 오픈소스 한정** — 토스·네이버·카카오·당근·라인·NHN 등 국내 조직과 한국 개인 개발자 저장소만 수록. "한국에서 만들었는가"를 사람이 검수한다.
 2. **한국어 문서 지원 표시** — README 본문의 한글 비중, `README.ko.md`·`README-ko_kr.md` 같은 한국어 문서 파일 존재를 자동 판정해 배지로 노출.
-3. **상업 무료 라이선스 판정** — SPDX 라이선스를 허용 목록(MIT·Apache-2.0·BSD·ISC·MPL-2.0 등)과 대조해 "회사에서 써도 되는가"를 즉시 답한다.
+3. **상업 무료 라이선스 판정** — SPDX 라이선스를 허용 목록(MIT·Apache-2.0·BSD·ISC·MPL-2.0·OFL-1.1 등)과 대조해 "회사에서 써도 되는가"를 즉시 답한다.
 4. **Docker 한 방 실행 + 최근 업데이트 필터** — `Dockerfile`/공식 이미지가 확인된 저장소는 `docker run` 안내를 붙이고, 최근 3개월 푸시된 것만 남길 수 있다.
 
 ## 4. 사용자와 시나리오
@@ -72,7 +72,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 | ID | 요구사항 | 우선순위 | MVP |
 |---|---|---|---|
-| FR-1 | 16개 시드 데이터(실제 GitHub API로 검증) 표시 | P0 | ✅ |
+| FR-1 | 40개 시드 데이터(실제 GitHub API로 검증) 표시 | P0 | ✅ |
 | FR-2 | 실시간 검색(한국어 부분 일치, 대소문자 무시) | P0 | ✅ |
 | FR-3 | 카테고리 탭 전환 | P0 | ✅ |
 | FR-4 | 필터 칩 4종 + 다중 선택 | P0 | ✅ |
@@ -110,6 +110,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
       "tags": ["TypeScript", "유틸리티"],
       "koreanDocs": true,               // 선택. 생략하면 자동 판정
       "docker": false,                  // 선택. 공식 Docker 확인 여부
+      "license": "OFL-1.1",             // 선택. GitHub이 라이선스를 못 읽을 때 사람이 직접 확인한 SPDX
       "addedAt": "2026-11-26"
     }
   ]
@@ -146,7 +147,9 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 ### 7.4 판정 규칙 (모두 스크립트가 계산, 결과를 데이터에 남긴다)
 
-- **상업 무료**: `license.spdx_id`가 `MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, CC0-1.0, Unlicense, 0BSD` 중 하나면 `true`. 라이선스 없음은 `false`(표시: `라이선스 미지정`).
+- **상업 무료**: `MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, CC0-1.0, Unlicense, 0BSD, OFL-1.1` 중 하나면 `true`. 라이선스 없음은 `false`(표시: `라이선스 미지정`).
+  - OFL-1.1은 글꼴을 앱·웹에 임베드해 배포해도 되는 라이선스라 폰트 저장소에 한해 허용한다(폰트 자체의 유료 재판매만 금지).
+  - GitHub API가 `NOASSERTION`으로 읽는 저장소(Pretendard처럼 OFL 전문에 저작권 고지가 여러 개 붙은 경우)는 `data/repos.json`의 `license`에 LICENSE 원문을 확인한 값을 적고 `licenseSource: curated`로 남긴다. 화면에서는 `?` 표시로 API 실측(`✓`)과 구분한다.
 - **한국어 문서**: ① `data/repos.json`의 `koreanDocs`가 있으면 그 값(`source: curated`) ② 없으면 README 원문의 한글 글자 수 ≥ 100 또는 루트에 `README.ko.md`·`README-ko_kr.md`·`README.kr.md`가 있으면 `true`(`source: readme`).
 - **Docker**: `data/repos.json`의 `docker`가 `true`면 `true`(`source: curated`, 저장소 안 Dockerfile 경로를 사람이 확인) ② 아니면 루트 `Dockerfile` 존재 또는 topics에 `docker` 포함(`source: detected`).
 - **최근 3개월**: `pushedAt`이 `generatedAt - 90일` 이후.
@@ -189,15 +192,15 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 - 단계: checkout → `node scripts/sync_repos.mjs` (env `GITHUB_TOKEN`) → `catalog.json` 변경 시 커밋·푸시
 - 실패 처리: 한 저장소 조회가 실패해도 **직전 값 유지**로 계속 진행하고, 최종 실패율을 로그·요약에 남긴다. 전 저장소 실패 시에만 워크플로 실패(빈 데이터로 사이트가 비는 것을 막는다).
 
-## 9. 초기 시드 30개 구성 계획
+## 9. 시드 구성 (현재 40개)
 
 **1차 16개(MVP, 2026-11-26 GitHub API로 존재·스타·라이선스·최근 푸시 직접 검증 완료)**
-국산 OSS 15개 + 직접 만든 1개(`YunhuPark/devorch`) = 16개.
+국산 OSS 15개 + 직접 만든 1개(`YunhuPark/devorch`).
 
 | # | 저장소 | 만든 곳 | 카테고리 | ★ | 라이선스 | 한국어 | Docker | 최근 3개월 |
 |---|---|---|---|---|---|---|---|---|
 | 1 | `nhn/tui.editor` | NHN | 개발 도구 | 17,983 | MIT | | | ✅ (보관됨) |
-| 2 | `gyoogle/tech-interview-for-developer` | 개인 | 학습 | 17,704 | MIT | ✅ | | |
+| 2 | `gyoogle/tech-interview-for-developer` | 개인 | 학습 | 17,704 | MIT | ✅ | | | ✅ |
 | 3 | `toss/es-toolkit` | 토스 | 프론트엔드 | 11,399 | MIT | ✅ | | ✅ |
 | 4 | `naver/billboard.js` | 네이버 | 프론트엔드 | 6,026 | MIT | | | ✅ |
 | 5 | `line/armeria` | 라인 | 백엔드·인프라 | 5,154 | Apache-2.0 | | | ✅ |
@@ -213,27 +216,21 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 | 15 | `line/centraldogma` | 라인 | 백엔드·인프라 | 675 | Apache-2.0 | | ✅ | ✅ |
 | 16 | `YunhuPark/devorch` | 직접 만듦 | 개발 도구 | 0 | 미지정 | ✅ | | ✅ |
 
-판정 집계(동기화 결과): 한국어 문서 7개 · 상업 무료 15개 · Docker 3개 · 최근 3개월 13개 · 보관됨 2개(`nhn/tui.editor`, `kakaobrain/pororo`).
+**2차(2026-11-26) — 자기 저장소 10개 제외, 별표 저장소 전수 조사, 검증 19개 + 폰트 2개 추가 → 40개.**
 
-**1차 확장 완료 — 25개 (2026-11-26).** `@YunhuPark` 공개 저장소 31개를 전수 조사해 9개를 추가했다.
-`shorts-studio`, `topic-ai`, `yt-growth-coach`, `trackpad-controller`, `smart-travel-calc`, `onetool`, `hand-cube`, `Dr-Strange-AR`, `aether-flow`(모두 MIT LICENSE 파일 확인).
-판정 집계: 한국어 문서 14 · 상업 무료 24 · Docker 5 · 최근 3개월 22.
+1. `YunhuPark/*` 10개(`devorch` 포함)를 제거했다. 직접 만든 저장소가 목록의 44%를 차지해 "국산 오픈소스 큐레이션"이라는 성격을 흐렸기 때문이다.
+2. `gh api users/YunhuPark/starred --paginate`로 **별표한 저장소 1,211개 전수 조회** → 1,211개 README·루트 파일 목록을 실제로 받아 한국어 문서 여부를 판정. 국산·한국어 기준 통과 4개만 추가:
+   `vmc-inner-circle/k-style-ui-ux`, `hanmariyang/giting-skills`, `jo-duchan/tapflow`(서울 소재 개발자·MIT), `supertone-oss-archive/supertonic`(수퍼톤, 보관됨).
+   같은 조회에서 탈락: `tosspayments/browser-sdk`·`portone-io/server-sdk`(라이선스 없음), `abus-aikorea/voice-pro`(GPL-3.0), `code-yeongyu/oh-my-openagent`(NOASSERTION). 한국어 README만 번역해 둔 해외 인기 툴은 "국산" 전제를 지키려고 넣지 않았다.
+3. `work/notes/k-oss-candidates-2026-11-26.md`에서 실측 검증된 국내 19개(토스·네이버·라인·당근) + OFL-1.1 폰트 2개(`orioncactus/pretendard`, `naver/d2-coding-font`)를 추가했다.
 
-> 균형 주의: 직접 만든 저장소가 11/25(44%)다. 다음 배치부터는 국내 조직(토스·네이버·카카오·당근·라인·NHN·우아한형제들 등) 저장소로 채워 "국산 오픈소스 큐레이션"이라는 성격을 지킨다.
+**현재 분포(2026-11-26 동기화 결과)**: 저장소 40개 · 프론트엔드 15 / 개발 도구 10 / 백엔드·인프라 9 / AI·데이터 5 / 학습·자료 1.
+판정: 한국어 문서 15 · 상업 무료 40 · Docker 7 · 최근 3개월 34 · 보관됨 3(`nhn/tui.editor`, `kakaobrain/pororo`, `supertone-oss-archive/supertonic`).
 
-**2차 14개(검증 후 추가, 합계 30개 → PRD의 "초기 30개")**
-
-아래는 후보군이며 **투입 전 `gh api repos/{owner}/{repo}`로 실존·라이선스·최근 푸시를 반드시 재검증**한다(추측 금지).
-
-| 축 | 후보 | 메모 |
-|---|---|---|
-| 대기업·조직 | `toss/slash`(보관됨), `naver/fe-news`, `naver/ngrinder`, `daangn/karrotframe`, `toss/use-funnel`, `kakao/kakao-api`, `line/line-bot-sdk` | 라이선스·최근성 확인 후 선별 |
-| 국산 폰트·디자인 | `naver/d2codingfont`, `spoqa/spoqa-han-sans` | "상업 무료" 축이 가장 빛나는 카테고리(OFL) |
-| 개인 개발자 | `jojoldu/freelec-springboot2-webservice`, `pythonkr/*`, `velopert/velog` | 개인 프로젝트는 유지보수 상태 표시가 중요 |
-| AI·데이터 | `kakaobrain/*`, 국내 LLM·비전 저장소 | archived 판별 주의 |
-| 사용자 본인 | `YunhuPark/youth-policy-recommender` 등 공개 저장소 | 실제 조회 후 포함 |
+**다음 배치 후보(추측 금지 — 투입 전 `gh api repos/{owner}/{repo}` 재검증)**: `toss/slash`(보관됨), `nhn/tui.calendar`·`tui.chart`·`tui.grid`(보관됨), `naver/ngrinder`(보관됨), `line/tsr`(보관됨), `naver/fe-news`·`toss/technical-writing`(라이선스 미명시), `spoqa/spoqa-han-sans`(OFL), `kakao/buffalo`(6개월+ 미갱신), `naver/dust3r`·`naver/mast3r`(비상업 라이선스).
 
 > 시드 확장 원칙: **스타 수보다 "지금 실무에 붙일 수 있는가"**. 3년 이상 커밋이 없고 대체재가 있으면 제외하거나 `보관됨`으로 표시한다.
+> 배치 단위는 주 1회 5~7개. 한 번에 많이 넣으면 검수 품질이 서비스 품질을 앞지른다.
 >
 > "국산" 경계 메모: `line/armeria`·`line/centraldogma`는 네이버 계열(LINE) 조직 저장소로, 한국·일본 엔지니어가 함께 관리한다. 수록은 유지하되 `vendor`에 `라인`으로 표시해 출처를 숨기지 않는다.
 
@@ -257,7 +254,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 | 단계 | 내용 | 판단 기준 |
 |---|---|---|
 | M1 (이번) | 16개 시드 + 탐색·필터·상세·제보 + 자동 동기화 | 배포 URL 동작, 모바일 가로 넘침 0 |
-| M2 | 시드 30개, 태그 클릭 탐색, 상세 정적 페이지(`/r/{o}/{r}`), OG 이미지 | 주간 방문 100 |
+| M2 | 태그 클릭 탐색, 상세 정적 페이지(`/r/{o}/{r}`), OG 이미지 (시드는 40개로 확장 완료) | 주간 방문 100 |
 | M3 | 주간 인기순(스타 증가량 스냅샷 저장), 개인화 없음 유지 | 데이터 100건 |
 | M4 | 다국어(영문 UI), 채용·기여 난이도(`good first issue` 수) 표시 | 제보 월 10건 |
 
@@ -273,11 +270,11 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 ## 14. 완료 정의 (Definition of Done — M1)
 
-- [x] `data/repos.json` 16개, 전부 실제 API 조회로 검증
+- [x] `data/repos.json` 40개, 전부 실제 API 조회로 검증
 - [x] `public/` 정적 사이트가 `catalog.json`만으로 동작(서버·DB 없음)
 - [x] 검색·카테고리·필터 4종·정렬·상세 모달 동작
 - [x] 360px/1280px 헤드리스 브라우저 검증, 가로 넘침 0, 스크린샷 보관
 - [x] `scripts/sync_repos.mjs` + 단위 테스트 통과
 - [x] `docs/workflows/sync.yml`, `.github/ISSUE_TEMPLATE/submit-repo.yml` 준비
-- [ ] 저장소 공개·Cloudflare Pages 배포(소유자 계정 작업 필요)
+- [x] 저장소 공개·Cloudflare Pages 배포 — https://k-oss-directory.pages.dev
 - [ ] 저장소 라이선스 결정(현재 미정 — 공개 전 결정 필요)
