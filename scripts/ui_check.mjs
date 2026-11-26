@@ -337,6 +337,49 @@ async function main() {
         `제목줄→요약 ${spacing.topToSummary} · 요약→배지 ${spacing.summaryToBadges} · 배지→메타 ${spacing.badgesToMeta}`,
       );
 
+      // 카드 박스 크기 통일: 제목 1줄·요약 2줄·배지 1줄 높이를 고정해 글자 길이와 무관하게 카드 높이가 같다.
+      const cardShape = await page.evaluate(() => {
+        const round = (value) => Math.round(value * 10) / 10;
+        const linePx = (node) => {
+          const style = getComputedStyle(node);
+          return parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4;
+        };
+        return [...document.querySelectorAll('.card')].map((card) => {
+          const title = card.querySelector('.card-title');
+          const summary = card.querySelector('.card-summary');
+          const badges = card.querySelector('.badges');
+          const summaryStyle = getComputedStyle(summary);
+          return {
+            height: round(card.getBoundingClientRect().height),
+            titleLine: round(linePx(title)),
+            titleHeight: round(title.getBoundingClientRect().height),
+            titleWhiteSpace: getComputedStyle(title).whiteSpace,
+            summaryLine: round(linePx(summary)),
+            summaryHeight: round(summary.getBoundingClientRect().height),
+            summaryClamp: summaryStyle.webkitLineClamp,
+            badgesHeight: round(badges.getBoundingClientRect().height),
+            // 배지가 한 줄에 놓였는지(줄마다 top이 다르면 2줄로 접힌 것)
+            badgeRows: new Set([...badges.children].map((badge) => Math.round(badge.getBoundingClientRect().top))).size,
+          };
+        });
+      });
+      {
+        const heights = cardShape.map((item) => item.height);
+        const heightSpread = Math.round((Math.max(...heights) - Math.min(...heights)) * 10) / 10;
+        const summariesTwoLines = cardShape.every(
+          (item) => Math.abs(item.summaryHeight - item.summaryLine * 2) <= 1 && item.summaryClamp === '2',
+        );
+        const titlesOneLine = cardShape.every(
+          (item) => Math.abs(item.titleHeight - item.titleLine) <= 1 && item.titleWhiteSpace === 'nowrap',
+        );
+        const badgeRowsFixed = cardShape.every((item) => item.badgesHeight >= 24 && item.badgeRows === 1);
+        check(
+          `[${viewport.name}] 카드 박스 높이 균일(제목 1줄·요약 2줄·배지 줄 고정)`,
+          cardShape.length > 10 && heightSpread <= 1 && summariesTwoLines && titlesOneLine && badgeRowsFixed,
+          `카드 ${Math.min(...heights)}~${Math.max(...heights)}px(편차 ${heightSpread}px) · 요약 2줄 ${summariesTwoLines} · 제목 1줄 ${titlesOneLine} · 배지 한 줄 ${badgeRowsFixed}`,
+        );
+      }
+
       // 검색 돋보기 아이콘: 감싸는 상자와 입력창의 세로 중심에서 1px 안쪽, 입력창 밖으로 나가지 않아야 한다.
       // (상자가 입력창보다 높아지면 top:50%만으로는 아이콘이 아래로 처진다 — 회귀 방지)
       const searchIcon = await page.evaluate(() => {
@@ -497,6 +540,29 @@ async function main() {
         allLoad.count === total && allLoad.hidden,
         `${allLoad.count}개 · 버튼 ${allLoad.hidden ? '숨김' : '남음'}`,
       );
+      // 전수 확인: 1,321장 모두 높이가 같아야 한다.
+      // (배지 4개짜리 5장만 좁은 화면에서 배지가 두 줄로 접혀 한 줄만큼 높다 — 그 예외까지 허용한다.)
+      const allHeights = await page.evaluate(() => {
+        const groups = new Map();
+        let badgeTwoRows = 0;
+        for (const card of document.querySelectorAll('.card')) {
+          const height = Math.round(card.getBoundingClientRect().height * 10) / 10;
+          groups.set(height, (groups.get(height) || 0) + 1);
+          const badges = card.querySelector('.badges');
+          const rows = new Set([...badges.children].map((badge) => Math.round(badge.getBoundingClientRect().top))).size;
+          if (rows > 1) badgeTwoRows += 1;
+        }
+        return { groups: [...groups.entries()].sort((a, b) => b[1] - a[1]), badgeTwoRows };
+      });
+      check(
+        `[${viewport.name}] 전체 ${total}개 카드 높이 균일`,
+        allHeights.groups.length <= 2 &&
+          allHeights.groups[0][1] >= total - 6 &&
+          allHeights.badgeTwoRows <= 6,
+        `${allHeights.groups.map(([height, count]) => `${height}px×${count}`).join(', ')} · 배지 두 줄 ${
+          allHeights.badgeTwoRows
+        }장`,
+      );
       // 1,321개를 펼쳐도 아바타 요청이 터지지 않아야 한다(ERR_INSUFFICIENT_RESOURCES 회귀 방지).
       check(
         `[${viewport.name}] 끝까지 펼쳐도 이미지 요청 실패 없음`,
@@ -556,6 +622,9 @@ async function main() {
           activeBg: a.backgroundColor,
           offsetLeft: Math.round(tabs[0].getBoundingClientRect().left - track.getBoundingClientRect().left),
           trackOverflow: getComputedStyle(track).overflowX,
+          widths: tabs.map((node) => Math.round(node.getBoundingClientRect().width * 10) / 10),
+          justify: i.justifyContent,
+          textAlign: i.textAlign,
         };
       });
       check(
@@ -575,6 +644,20 @@ async function main() {
         tabStyle.activeBg !== tabStyle.inactiveBg,
         `활성 ${tabStyle.activeBg} · 비활성 ${tabStyle.inactiveBg} · ${tabStyle.labels.join(' / ')}`,
       );
+      // '전체'처럼 짧은 칩도 최소 폭을 채워 칩 크기 편차를 줄인다.
+      {
+        const tabWidths = tabStyle.widths;
+        const tabSpread = Math.round((Math.max(...tabWidths) - Math.min(...tabWidths)) * 10) / 10;
+        check(
+          `[${viewport.name}] 카테고리 칩 폭 편차(최소 76px·중앙 정렬)`,
+          tabWidths.length === 6 &&
+            Math.min(...tabWidths) >= 76 &&
+            tabSpread <= 24 &&
+            tabStyle.justify === 'center' &&
+            tabStyle.textAlign === 'center',
+          `${tabWidths.join('/')} · 편차 ${tabSpread}px · 정렬 ${tabStyle.justify}/${tabStyle.textAlign}`,
+        );
+      }
 
       // 카테고리 전환: 전체 → 프론트엔드
       const frontendPage = firstPageCount(frontendNames.length);
@@ -638,6 +721,61 @@ async function main() {
         opened.expanded === 'true' && opened.height > 0 && opened.items === 5,
         `height ${opened.height}px · 칩 ${opened.items}개`,
       );
+
+      // 필터 칩 크기 균일: 글자 길이와 무관하게 가로·세로가 같고, 좁은 화면은 2열 격자로 폭이 꼭 맞는다.
+      const chipShape = await page.evaluate(() => {
+        const round = (value) => Math.round(value * 10) / 10;
+        const chips = [...document.querySelectorAll('#chips .chip')];
+        const boxes = chips.map((node) => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return {
+            label: node.textContent.trim(),
+            width: round(rect.width),
+            height: round(rect.height),
+            left: Math.round(rect.left),
+            top: Math.round(rect.top),
+            justify: style.justifyContent,
+            textAlign: style.textAlign,
+          };
+        });
+        const grid = getComputedStyle(document.getElementById('chips'));
+        return {
+          boxes,
+          display: grid.display,
+          columns: grid.gridTemplateColumns.split(' ').filter(Boolean).length,
+        };
+      });
+      {
+        const chipWidths = chipShape.boxes.map((box) => box.width);
+        const chipHeights = chipShape.boxes.map((box) => box.height);
+        const widthSpread = Math.round((Math.max(...chipWidths) - Math.min(...chipWidths)) * 10) / 10;
+        const heightSpread = Math.round((Math.max(...chipHeights) - Math.min(...chipHeights)) * 10) / 10;
+        // 560px 미만: 2열 격자(첫 두 칩이 같은 줄, 셋째부터 다음 줄, 열 왼쪽 끝이 맞는다)
+        const twoColumnLayout =
+          chipShape.display === 'grid' &&
+          chipShape.columns === 2 &&
+          chipShape.boxes[0].top === chipShape.boxes[1].top &&
+          chipShape.boxes[0].top !== chipShape.boxes[2].top &&
+          chipShape.boxes[2].top === chipShape.boxes[3].top &&
+          chipShape.boxes[0].left === chipShape.boxes[2].left &&
+          chipShape.boxes[2].left === chipShape.boxes[4].left;
+        const layoutOk = viewport.width < 560 ? twoColumnLayout : chipShape.boxes.every((box) => box.top === chipShape.boxes[0].top);
+        check(
+          `[${viewport.name}] 필터 칩 크기 균일(${viewport.width < 560 ? '2열 동일 폭' : '한 줄 동일 폭'})`,
+          chipShape.boxes.length === 5 &&
+            widthSpread <= 1 &&
+            heightSpread <= 1 &&
+            chipHeights.every((height) => height >= 36 && height <= 40) &&
+            chipShape.boxes.every((box) => box.justify === 'center' && box.textAlign === 'center') &&
+            layoutOk,
+          `가로 ${Math.min(...chipWidths)}~${Math.max(...chipWidths)}px(편차 ${widthSpread}) · 세로 ${Math.min(
+            ...chipHeights,
+          )}~${Math.max(...chipHeights)}px(편차 ${heightSpread}) · ${chipShape.display}${
+            chipShape.display === 'grid' ? ` ${chipShape.columns}열` : ''
+          } · 정렬 ${chipShape.boxes[0].justify}/${chipShape.boxes[0].textAlign}`,
+        );
+      }
       await settle(page);
       await screenshot(page, path.join(OUT_DIR, `filter-open-${viewport.name}.png`), viewport);
       const openOverflow = await page.evaluate(

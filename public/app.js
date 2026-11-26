@@ -346,7 +346,7 @@ function cardHtml(repo) {
       <div class="card-top">
         ${logoTile(repo)}
         <div class="card-heading">
-          <h3 class="card-title">${escapeHtml(repo.name)}</h3>
+          <h3 class="card-title" title="${escapeHtml(repo.name)}">${escapeHtml(repo.name)}</h3>
           <p class="card-vendor">${escapeHtml(sourceLine)}</p>
         </div>
         <span class="card-stars" title="GitHub 스타">
