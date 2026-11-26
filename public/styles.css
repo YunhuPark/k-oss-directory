@@ -153,7 +153,6 @@ a:hover {
 /* 마이크로 타이포: 라틴 문자 라벨에만 쓴다(한글은 모노스페이스에서 깨져 보인다). */
 .eyebrow,
 .field-label,
-.metric-label,
 .block-label,
 .card-meta dt,
 .spec-grid dt {
@@ -260,23 +259,25 @@ a:hover {
   display: none;
 }
 
-/* ── 히어로 ───────────────────────────── */
+/* ── 히어로 ─────────────────────────────
+   첫 화면은 "제목 → 검색 → 정렬·필터 → 카테고리 → 카드" 다섯 덩어리만 남긴다.
+   숫자판·안내 줄 없이 위아래 여백으로 숨통을 틔운다. */
 .hero {
-  padding: 12px 0 6px;
+  padding: 20px 0 16px;
 }
 
 .hero .eyebrow {
   display: none;
-  margin: 0 0 6px;
+  margin: 0 0 10px;
   font-size: 9px;
   color: var(--accent);
   letter-spacing: 0.13em;
 }
 
 .hero h1 {
-  margin: 0 0 6px;
-  font-size: clamp(22px, 6.2vw, 46px);
-  line-height: 1.2;
+  margin: 0;
+  font-size: clamp(22px, 6.1vw, 46px);
+  line-height: 1.26;
   letter-spacing: -0.045em;
   font-weight: 800;
 }
@@ -291,93 +292,12 @@ a:hover {
   max-width: 58ch;
   color: var(--muted);
   font-size: clamp(14.5px, 2.4vw, 16px);
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 .lede strong {
   color: var(--text);
   font-weight: 600;
-}
-
-/* 4칸 지표판: 모바일은 한 줄 띠, 768px부터 낱장 카드 */
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-}
-
-.metric {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  min-width: 0;
-  padding: 6px 3px 7px;
-  text-align: center;
-}
-
-.metric + .metric {
-  border-left: 1px solid var(--line);
-}
-
-.metric-value {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-
-.metric-label {
-  color: var(--muted);
-  font-size: 8.5px;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.metric-note {
-  display: none;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-/* ── 사용법: 헤더 아래 한 줄 ──────────────── */
-.howto-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 5px;
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-}
-
-.howto-num {
-  flex: 0 0 auto;
-  display: inline-grid;
-  place-items: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.howto-sep {
-  flex: 0 0 auto;
-  color: var(--line-strong);
 }
 
 /* ── 컨트롤 ─────────────────────────────
@@ -555,7 +475,7 @@ a:hover {
 
 .tabs-wrap {
   position: relative;
-  margin: 6px -16px 0;
+  margin: 16px -16px 0;
 }
 
 /* 개별 필 칩: 배경 트랙 없이 칩만 두어 어느 위치에서도 왼쪽에 붙어 보이지 않는다. */
@@ -720,7 +640,7 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .status-row[hidden] {
@@ -761,17 +681,17 @@ a:hover {
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  padding: 8px 0 8px;
+  gap: 18px;
+  padding: 18px 0 14px;
 }
 
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 10px;
   min-width: 0;
-  padding: 13px 14px 0;
+  padding: 15px 15px 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -892,7 +812,7 @@ a:hover {
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
 }
 
 .badge {
@@ -947,9 +867,10 @@ a:hover {
 .card-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 -14px;
-  padding: 8px 14px 10px;
+  gap: 12px;
+  /* 한 행의 카드 높이가 달라도 메타 띠는 항상 카드 바닥에 붙는다. */
+  margin: auto -15px 0;
+  padding: 11px 15px 14px;
   border-top: 1px solid var(--line);
   min-width: 0;
 }
@@ -1005,16 +926,33 @@ a:hover {
   color: var(--text);
 }
 
-/* ── 푸터 ─────────────────────────────── */
+/* ── 푸터 ─────────────────────────────
+   첫 화면에서 뺀 수록 현황은 여기 한 줄로 조용히 남긴다. */
 .site-footer {
-  margin-top: 28px;
-  padding: 22px 0 40px;
+  margin-top: 40px;
+  padding: 26px 0 48px;
   border-top: 1px solid var(--line);
 }
 
 .footer-inner {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+}
+
+.footer-stats {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer-stats:empty {
+  display: none;
+}
+
+.footer-stats b {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .footer-meta {
@@ -1396,11 +1334,6 @@ a:hover {
 
 /* ── 560px 이상 ───────────────────────── */
 @media (min-width: 560px) {
-  .howto-line {
-    margin-bottom: 10px;
-    font-size: 12.5px;
-  }
-
   .search-row {
     display: flex;
     flex-direction: row;
@@ -1452,63 +1385,27 @@ a:hover {
   }
 
   .hero {
-    padding: 48px 0 22px;
+    padding: 60px 0 34px;
   }
 
   .hero .eyebrow {
     display: block;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     font-size: 10.5px;
   }
 
   .hero h1 {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
   }
 
   .lede {
     display: block;
-  }
-
-  /* 지표판: 낱장 카드 4칸 */
-  .metrics {
-    gap: 10px;
-    margin-top: 22px;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    overflow: visible;
-    box-shadow: none;
-  }
-
-  .metric {
-    align-items: flex-start;
-    padding: 13px 14px 14px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-    text-align: left;
-  }
-
-  .metric-value {
-    font-size: clamp(24px, 4vw, 30px);
-    letter-spacing: -0.045em;
-  }
-
-  .metric-label {
-    color: var(--text);
-    font-size: 10.5px;
-    letter-spacing: 0.1em;
-    opacity: 0.7;
-  }
-
-  .metric-note {
-    display: block;
+    margin-top: 0;
   }
 
   /* 컨트롤: 한 장의 패널로 묶되, 세부 필터는 접힌 기본값을 유지한다. */
   .controls {
-    padding: 16px 18px 14px;
+    padding: 20px 22px 18px;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--surface);
@@ -1550,7 +1447,7 @@ a:hover {
 
   .field-label.tabs-label {
     display: flex;
-    margin-top: 16px;
+    margin-top: 20px;
   }
 
   .tabs-wrap {
@@ -1572,8 +1469,8 @@ a:hover {
   }
 
   .filter-panel {
-    margin-top: 16px;
-    padding-top: 14px;
+    margin-top: 18px;
+    padding-top: 16px;
     border-top: 1px solid var(--line);
   }
 
@@ -1584,15 +1481,25 @@ a:hover {
   }
 
   .status-row {
-    margin-top: 14px;
-    padding-top: 12px;
+    margin-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid var(--line);
   }
 
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    padding-top: 16px;
+    gap: 20px;
+    padding: 30px 0 20px;
+  }
+
+  .card {
+    gap: 12px;
+    padding: 20px 20px 0;
+  }
+
+  .card-meta {
+    margin: auto -20px 0;
+    padding: 13px 20px 16px;
   }
 }
 

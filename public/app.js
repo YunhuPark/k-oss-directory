@@ -41,7 +41,7 @@ const el = {
   empty: document.getElementById('empty'),
   loadError: document.getElementById('load-error'),
   updated: document.getElementById('updated'),
-  heroStats: document.getElementById('hero-stats'),
+  stats: document.getElementById('catalog-stats'),
   detail: document.getElementById('detail'),
   detailInner: document.getElementById('detail-inner'),
   reportLink: document.getElementById('report-link'),
@@ -117,7 +117,7 @@ function syncControls() {
   }
   const hasCondition = state.query !== '' || state.category !== 'all' || state.filters.size > 0;
   el.reset.hidden = !hasCondition;
-  // 조건이 없을 때는 지표판의 숫자와 같은 "93개 표시"를 반복하지 않는다.
+  // 조건이 없을 때는 푸터의 수록 현황과 같은 "93개 표시"를 반복하지 않는다.
   el.statusRow.hidden = !hasCondition;
   syncFilterBadge();
   revealActiveTab();
@@ -510,27 +510,17 @@ function bindEvents() {
 }
 
 /* ── 시작 ──────────────────────────────────────── */
-function renderHeroStats() {
+/** 첫 화면에서 뺀 수록 현황은 푸터 한 줄로만 남긴다. */
+function renderCatalogStats() {
   const korean = state.repos.filter((repo) => repo.koreanDocs).length;
   const commercial = state.repos.filter((repo) => repo.commercialUse).length;
   const docker = state.repos.filter((repo) => repo.docker).length;
-  const metrics = [
-    { value: state.repos.length, label: 'REPOS', note: '국산 저장소' },
-    { value: korean, label: 'KOREAN DOCS', note: '한국어 문서' },
-    { value: commercial, label: 'COMMERCIAL', note: '상업 무료 라이선스' },
-    { value: docker, label: 'DOCKER', note: 'Dockerfile 확인' },
-  ];
-  el.heroStats.innerHTML = metrics
-    .map(
-      (metric) => `<div class="metric" role="group" aria-label="${escapeHtml(
-        `${metric.note} ${metric.value}개`,
-      )}">
-        <span class="metric-value">${metric.value}</span>
-        <span class="metric-label">${metric.label}</span>
-        <span class="metric-note">${metric.note}</span>
-      </div>`,
-    )
-    .join('');
+  el.stats.innerHTML = [
+    `<b>${state.repos.length}</b>개 저장소`,
+    `한국어 문서 <b>${korean}</b>`,
+    `상업 무료 <b>${commercial}</b>`,
+    `Docker <b>${docker}</b>`,
+  ].join(' · ');
 }
 
 async function init() {
@@ -549,7 +539,7 @@ async function init() {
     state.generatedAt = catalog.generatedAt ?? null;
     if (state.repos.length === 0) throw new Error('빈 카탈로그');
     el.updated.textContent = `데이터 ${formatDate(catalog.generatedAt)} 갱신`;
-    renderHeroStats();
+    renderCatalogStats();
     render();
   } catch (error) {
     el.updated.textContent = '데이터 갱신 정보 없음';

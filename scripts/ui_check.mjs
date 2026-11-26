@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
  * 헤드리스 브라우저 검증: 360px / 1280px에서
- *  - 카드 수·지표판·검색·필터·정렬·모달이 catalog.json과 일치하는지
+ *  - 카드 수·검색·필터·정렬·모달이 catalog.json과 일치하는지
+ *  - 첫 화면 상단에 숫자판·사용법 안내 줄이 없고, 수록 현황은 푸터 한 줄인지
+ *  - 헤더→제목→검색→카드 사이 여백과 카드 간격이 충분한지
  *  - 가로 넘침 0 (scrollWidth <= clientWidth)
  *  - 다크 모드 토글·localStorage 저장·새로고침 유지
  *  - 상세 모달 하단 버튼이 뷰포트 안에 완전히 보이는지(모바일 잘림 회귀 방지)
- *  - Pretendard 적용·본문 대비 4.5:1 이상·원문 설명 미노출
+ *  - Pretendard 적용·라이트/다크 본문 대비 4.5:1 이상·원문 설명 미노출
  *  - 콘솔 오류 0, 접근성 기본 점검
  * 스크린샷을 --out(기본 downloads/k-oss-mvp)에 저장한다.
  *
@@ -141,23 +143,101 @@ async function main() {
         `타일 ${logos.tiles} · 이미지 ${logos.avatars} · 이니셜 ${logos.initials}`,
       );
 
-      const metrics = await page.$$eval('.metric', (nodes) =>
-        nodes.map((node) => ({
-          value: node.querySelector('.metric-value')?.textContent.trim(),
-          label: node.querySelector('.metric-label')?.textContent.trim(),
-          note: node.querySelector('.metric-note')?.textContent.trim(),
-        })),
-      );
-      const expectedMetrics = [
-        [String(total), 'REPOS', '국산 저장소'],
-        [String(koreanCount), 'KOREAN DOCS', '한국어 문서'],
-        [String(commercialCount), 'COMMERCIAL', '상업 무료 라이선스'],
-        [String(dockerCount), 'DOCKER', 'Dockerfile 확인'],
-      ];
+      const topBand = await page.evaluate(() => {
+        const hero = document.querySelector('.hero');
+        // 검색·필터 위(main의 앞쪽 덩어리)에 보이는 글자만 모은다. noscript는 화면에 없다.
+        let aboveControls = '';
+        for (const node of document.querySelector('main').children) {
+          if (node.classList.contains('controls')) break;
+          if (node.tagName === 'NOSCRIPT') continue;
+          aboveControls += ` ${node.textContent}`;
+        }
+        return {
+          removedNodes: document.querySelectorAll('#hero-stats, .metrics, .metric, .howto-line, .howto-num').length,
+          heroText: (hero?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          aboveControls: aboveControls.replace(/\s+/g, ' ').trim(),
+        };
+      });
       check(
-        `[${viewport.name}] 지표판 4칸`,
-        metrics.length === 4 && metrics.every((m, i) => m.value === expectedMetrics[i][0] && m.label === expectedMetrics[i][1]),
-        JSON.stringify(metrics.map((m) => `${m.label}=${m.value}`)),
+        `[${viewport.name}] 상단 숫자판·안내 줄 제거`,
+        topBand.removedNodes === 0 &&
+          !/REPOS|KOREAN DOCS|COMMERCIAL|DOCKER/.test(topBand.aboveControls) &&
+          !/필터로 좁히고|판정 확인|GitHub 설치/.test(topBand.aboveControls),
+        `제거 노드 ${topBand.removedNodes}개 · 검색 위 문구 "${topBand.aboveControls.slice(0, 80)}"`,
+      );
+      const heroLines = await page.evaluate(() => {
+        const h1 = document.querySelector('.hero h1');
+        const style = getComputedStyle(h1);
+        const lines = Math.round(h1.getBoundingClientRect().height / parseFloat(style.lineHeight));
+        return { lines, height: Math.round(h1.getBoundingClientRect().height) };
+      });
+      check(
+        `[${viewport.name}] 제목 2줄 이내`,
+        heroLines.lines <= 2,
+        `${heroLines.lines}줄 · 높이 ${heroLines.height}px`,
+      );
+
+      // 수록 현황은 첫 화면에서 뺀 뒤 푸터에 조용한 한 줄로만 둔다.
+      const footerStats = await page.evaluate(() => {
+        const node = document.getElementById('catalog-stats');
+        if (!node) return null;
+        const style = getComputedStyle(node);
+        return {
+          text: node.textContent.replace(/\s+/g, ' ').trim(),
+          fontSize: parseFloat(style.fontSize),
+          color: style.color,
+          inFooter: Boolean(node.closest('.site-footer')),
+          belowGrid: node.getBoundingClientRect().top > document.querySelector('.grid').getBoundingClientRect().bottom,
+        };
+      });
+      const expectedStats = `${total}개 저장소 · 한국어 문서 ${koreanCount} · 상업 무료 ${commercialCount} · Docker ${dockerCount}`;
+      check(
+        `[${viewport.name}] 수록 현황은 푸터 한 줄`,
+        footerStats?.inFooter && footerStats.belowGrid && footerStats.text === expectedStats && footerStats.fontSize <= 13.5,
+        `"${footerStats?.text}" · ${footerStats?.fontSize}px · 푸터 ${footerStats?.inFooter}`,
+      );
+
+      // 여백: 헤더→제목→검색→카드 사이, 카드와 카드 사이, 카드 내부
+      const spacing = await page.evaluate(() => {
+        const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+        const header = rect('.site-header');
+        const hero = rect('.hero');
+        const h1 = rect('.hero h1');
+        const search = rect('.search');
+        const controls = rect('.controls');
+        const cards = [...document.querySelectorAll('.card')].map((node) => node.getBoundingClientRect());
+        const card = cards[0];
+        const top = rect('.card .card-top');
+        const summary = rect('.card .card-summary');
+        const badges = rect('.card .badges');
+        const meta = rect('.card .card-meta');
+        const cardStyle = getComputedStyle(document.querySelector('.card'));
+        return {
+          headerToTitle: Math.round(h1.top - header.bottom),
+          titleToSearch: Math.round(search.top - h1.bottom),
+          tabsToCards: Math.round(card.top - controls.bottom),
+          cardGap: parseFloat(getComputedStyle(document.querySelector('.grid')).rowGap),
+          cardPadX: parseFloat(cardStyle.paddingLeft),
+          cardInnerGap: parseFloat(cardStyle.rowGap),
+          topToSummary: Math.round(summary.top - top.bottom),
+          summaryToBadges: Math.round(badges.top - summary.bottom),
+          badgesToMeta: Math.round(meta.top - badges.bottom),
+        };
+      });
+      const floor =
+        viewport.width < 768
+          ? { headerToTitle: 16, titleToSearch: 14, tabsToCards: 16, cardGap: 14, cardPadX: 14, cardInnerGap: 9 }
+          : { headerToTitle: 40, titleToSearch: 24, tabsToCards: 22, cardGap: 16, cardPadX: 18, cardInnerGap: 11 };
+      const spacingNotes = `헤더→제목 ${spacing.headerToTitle} · 제목→검색 ${spacing.titleToSearch} · 컨트롤→카드 ${spacing.tabsToCards} · 카드 간격 ${spacing.cardGap} · 카드 패딩 ${spacing.cardPadX} · 카드 내부 간격 ${spacing.cardInnerGap}`;
+      check(
+        `[${viewport.name}] 여백 넉넉함`,
+        Object.keys(floor).every((key) => spacing[key] >= floor[key]),
+        spacingNotes,
+      );
+      check(
+        `[${viewport.name}] 카드 내부 숨쉬는 간격`,
+        spacing.topToSummary >= 9 && spacing.summaryToBadges >= 9 && spacing.badgesToMeta >= 8,
+        `제목줄→요약 ${spacing.topToSummary} · 요약→배지 ${spacing.summaryToBadges} · 배지→메타 ${spacing.badgesToMeta}`,
       );
 
       const overflow = await page.evaluate(() => {
@@ -465,8 +545,58 @@ async function main() {
         lightBg !== darkBg && stored === 'dark',
         `light ${lightBg} → dark ${darkBg} · 저장 ${stored}`,
       );
+      // 색 전환 트랜지션이 끝난 뒤에야 실제 색이 측정된다.
+      await settle(page, 420);
+      // 다크 모드에서도 본문·보조 텍스트가 4.5:1 이상인지 확인한다.
+      const darkContrast = await page.evaluate(() => {
+        const parse = (value) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        const alpha = (value) => {
+          const parts = (value.match(/[\d.]+/g) ?? []).map(Number);
+          return parts.length > 3 ? parts[3] : 1;
+        };
+        const luminance = (rgb) => {
+          const [r, g, b] = rgb.map((channel) => {
+            const c = channel / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (foreground, background) => {
+          const a = luminance(parse(foreground));
+          const b = luminance(parse(background));
+          return Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+        };
+        // 투명 배경이면 부모를 거슬러 올라가 실제로 깔린 색을 쓴다.
+        const effectiveBg = (node) => {
+          let current = node;
+          while (current) {
+            const bg = getComputedStyle(current).backgroundColor;
+            if (alpha(bg) > 0.01) return bg;
+            current = current.parentElement;
+          }
+          return getComputedStyle(document.body).backgroundColor;
+        };
+        const body = getComputedStyle(document.body);
+        const summary = document.querySelector('.card-summary');
+        const card = summary?.closest('.card');
+        const tab = document.querySelector('#tabs .tab:not([aria-pressed="true"])');
+        return {
+          bodyRatio: ratio(body.color, body.backgroundColor),
+          cardTitleRatio: ratio(getComputedStyle(document.querySelector('.card-title')).color, effectiveBg(card)),
+          summaryRatio: ratio(getComputedStyle(summary).color, effectiveBg(card)),
+          tabRatio: ratio(getComputedStyle(tab).color, effectiveBg(tab)),
+          statsRatio: ratio(getComputedStyle(document.getElementById('catalog-stats')).color, body.backgroundColor),
+        };
+      });
+      check(
+        `[${viewport.name}] 다크 모드 대비 4.5:1 이상`,
+        Object.values(darkContrast).every((value) => value >= 4.5),
+        Object.entries(darkContrast)
+          .map(([key, value]) => `${key} ${value}:1`)
+          .join(' · '),
+      );
       // 색 전환 트랜지션이 끝난 뒤에 캐처해야 화면이 그대로 보인다.
-      await settle(page, 400);
+      await settle(page, 200);
       await screenshot(page, path.join(OUT_DIR, `home-${viewport.name}-dark.png`), viewport);
       await page.reload({ waitUntil: 'networkidle0' });
       await page.waitForSelector('.card');
