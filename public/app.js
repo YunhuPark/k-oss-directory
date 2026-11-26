@@ -2,6 +2,7 @@ import { FILTERS, SORTS, selectRepos, formatStars, formatRelativeDate, formatDat
 
 const REPO_URL = 'https://github.com/YunhuPark/k-oss-directory';
 const ISSUE_NEW = `${REPO_URL}/issues/new`;
+const THEME_KEY = 'koss-theme';
 
 const CATEGORY_LABELS = {
   all: '전체',
@@ -39,6 +40,9 @@ const el = {
   detail: document.getElementById('detail'),
   detailInner: document.getElementById('detail-inner'),
   reportLink: document.getElementById('report-link'),
+  themeToggle: document.getElementById('theme-toggle'),
+  themeLabel: document.getElementById('theme-label'),
+  themeColor: document.querySelector('meta[name="theme-color"]'),
 };
 
 function escapeHtml(value) {
@@ -53,6 +57,28 @@ function escapeHtml(value) {
 function issueUrl(title) {
   const params = new URLSearchParams({ template: 'submit-repo.yml', title });
   return `${ISSUE_NEW}?${params.toString()}`;
+}
+
+/* ── 라이트/다크 모드 (data-theme + localStorage) ── */
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme, { persist = true } = {}) {
+  const next = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch (error) {
+      /* 저장소를 쓸 수 없어도 화면은 바뀐다 */
+    }
+  }
+  const toDark = next === 'light';
+  el.themeToggle.setAttribute('aria-pressed', String(next === 'dark'));
+  el.themeToggle.setAttribute('title', toDark ? '다크 모드로 전환' : '라이트 모드로 전환');
+  el.themeLabel.textContent = toDark ? '다크 모드로 전환' : '라이트 모드로 전환';
+  if (el.themeColor) el.themeColor.setAttribute('content', next === 'dark' ? '#0d0e10' : '#f6f6f3');
 }
 
 /* ── URL 해시 ⇄ 상태 (공유 가능한 링크) ─────────────── */
@@ -110,26 +136,48 @@ function buildTabs() {
   el.sort.value = state.sort;
 }
 
-function badge(label, kind) {
-  return `<span class="badge${kind ? ` badge-${kind}` : ''}">${escapeHtml(label)}</span>`;
+/** 배지: 판정 + 검증 표시(✓ 실측 · ? 직접 확인/참고) */
+function badge(label, kind, mark) {
+  const markClass = mark === 'question' ? 'reference' : mark === 'verified' ? 'verified' : '';
+  const classes = ['badge', kind ? `badge-${kind}` : '', markClass ? `badge-${markClass}` : '']
+    .filter(Boolean)
+    .join(' ');
+  return `<span class="${classes}">${escapeHtml(label)}</span>`;
 }
 
-function cardHtml(repo, now) {
-  const badges = [
-    repo.commercialUse ? badge(repo.license ?? '상업 무료') : badge(repo.license ?? '라이선스 미지정'),
-    repo.koreanDocs ? badge('한국어 문서', 'korean') : '',
-    repo.docker ? badge('Docker', 'docker') : '',
+function licenseEvidence(repo) {
+  if (repo.licenseSource === 'github') {
+    return { mark: 'verified', text: `LICENSE ${repo.license} · GitHub 확인` };
+  }
+  if (repo.licenseSource === 'curated') {
+    return { mark: 'question', text: `LICENSE ${repo.license} · 원문 직접 확인` };
+  }
+  return { mark: 'question', text: 'LICENSE 미지정 · 원문 확인 필요' };
+}
+
+function cardBadges(repo) {
+  const license = licenseEvidence(repo);
+  const commercial = repo.commercialUse
+    ? badge('상업 무료', 'commercial', license.mark)
+    : badge('라이선스 미지정', null, 'question');
+
+  return [
+    commercial,
+    repo.koreanDocs ? badge('한국어 문서', 'korean', repo.koreanDocsSource === 'curated' ? 'question' : 'verified') : '',
+    repo.docker ? badge('Docker', 'docker', repo.dockerSource === 'curated' ? 'question' : 'verified') : '',
     repo.archived ? badge('보관됨', 'archived') : '',
   ]
     .filter(Boolean)
     .join('');
+}
 
+function cardHtml(repo) {
   const meta = [
-    `<span class="star">${formatStars(repo.stars)}</span>`,
-    repo.pushedAt ? `<span>${formatRelativeDate(repo.pushedAt, now)} 업데이트</span>` : '<span>업데이트 정보 없음</span>',
-    repo.language ? `<span>${escapeHtml(repo.language)}</span>` : '',
+    ['LICENSE', repo.license ?? '미지정'],
+    ['PUSHED', repo.pushedAt ? formatDate(repo.pushedAt) : '—'],
+    ['LANG', repo.language ?? '—'],
   ]
-    .filter(Boolean)
+    .map(([term, value]) => `<div><dt>${term}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join('');
 
   return `<article class="card" role="button" tabindex="0" data-repo="${escapeHtml(repo.repo)}" aria-label="${escapeHtml(
@@ -140,13 +188,15 @@ function cardHtml(repo, now) {
         <span class="card-vendor">${escapeHtml(repo.vendor)}</span>
       </div>
       <p class="card-summary">${escapeHtml(repo.summary)}</p>
-      <div class="badges">${badges}</div>
-      <div class="card-meta">${meta}</div>
+      <div class="badges">${cardBadges(repo)}</div>
+      <dl class="card-meta">
+        ${meta}
+        <div class="card-stars"><dt>STARS</dt><dd>${formatStars(repo.stars)}</dd></div>
+      </dl>
     </article>`;
 }
 
 function render() {
-  const now = state.generatedAt ? new Date(state.generatedAt) : new Date();
   const visible = selectRepos(state.repos, {
     query: state.query,
     category: state.category,
@@ -154,7 +204,7 @@ function render() {
     sort: state.sort,
   });
 
-  el.grid.innerHTML = visible.map((repo) => cardHtml(repo, now)).join('');
+  el.grid.innerHTML = visible.map((repo) => cardHtml(repo)).join('');
   el.empty.hidden = visible.length !== 0;
   el.grid.hidden = visible.length === 0;
 
@@ -167,19 +217,63 @@ function render() {
 }
 
 /* ── 상세 모달 ──────────────────────────────────── */
+function evidenceItem(mark, key, text) {
+  return `<li class="evidence-item" data-mark="${mark}">
+      <span class="evidence-mark" aria-hidden="true">${mark === 'check' ? '✓' : '?'}</span>
+      <span class="evidence-key">${escapeHtml(key)}</span>
+      <span>${escapeHtml(text)}</span>
+    </li>`;
+}
+
 function detailHtml(repo) {
   const now = state.generatedAt ? new Date(state.generatedAt) : new Date();
-  const tags = (repo.tags ?? [])
-    .map((tag) => `<span class="badge">${escapeHtml(tag)}</span>`)
+  const tags = (repo.tags ?? []).map((tag) => `<span class="badge">${escapeHtml(tag)}</span>`).join('');
+
+  const evidence = [
+    evidenceItem(
+      repo.licenseSource === 'github' ? 'check' : 'question',
+      'LICENSE',
+      repo.licenseSource === 'github'
+        ? `${repo.license ?? '미지정'} · GitHub API 실측`
+        : repo.licenseSource === 'curated'
+          ? `${repo.license} · 원문 직접 확인`
+          : '라이선스 파일 없음 · 상업 사용 전 확인 필요',
+    ),
+    evidenceItem(
+      repo.koreanDocs ? (repo.koreanDocsSource === 'curated' ? 'question' : 'check') : 'question',
+      'KOREAN',
+      repo.koreanDocs
+        ? repo.koreanDocsSource === 'curated'
+          ? '한국어 문서 직접 확인'
+          : '한국어 README 또는 README.ko.md'
+        : '한국어 문서 없음(영어 문서)',
+    ),
+    evidenceItem(
+      repo.docker ? (repo.dockerSource === 'curated' ? 'question' : 'check') : 'question',
+      'DOCKER',
+      repo.docker
+        ? repo.dockerSource === 'curated'
+          ? 'Dockerfile 직접 확인'
+          : '루트 Dockerfile 또는 docker 토픽'
+        : 'Dockerfile 없음',
+    ),
+    evidenceItem(
+      repo.recent ? 'check' : 'question',
+      'PUSHED',
+      repo.pushedAt ? `${formatDate(repo.pushedAt)} · ${formatRelativeDate(repo.pushedAt, now)}` : '푸시 기록 없음',
+    ),
+    repo.archived ? evidenceItem('question', 'ARCHIVED', 'GitHub에서 보관된 저장소') : '',
+  ]
+    .filter(Boolean)
     .join('');
 
   const stats = [
-    ['스타', formatStars(repo.stars)],
-    ['오픈 이슈', repo.openIssues === null ? '—' : String(repo.openIssues)],
-    ['라이선스', repo.license ?? '미지정'],
-    ['최근 푸시', repo.pushedAt ? `${formatDate(repo.pushedAt)} (${formatRelativeDate(repo.pushedAt, now)})` : '정보 없음'],
-    ['언어', repo.language ?? '—'],
-    ['기본 브랜치', repo.defaultBranch ?? '—'],
+    ['STARS', formatStars(repo.stars)],
+    ['OPEN ISSUES', repo.openIssues === null ? '—' : String(repo.openIssues)],
+    ['LICENSE', repo.license ?? '미지정'],
+    ['PUSHED', repo.pushedAt ? formatDate(repo.pushedAt) : '정보 없음'],
+    ['LANG', repo.language ?? '—'],
+    ['BRANCH', repo.defaultBranch ?? '—'],
   ];
 
   return `<div class="detail-head">
@@ -191,20 +285,11 @@ function detailHtml(repo) {
     </div>
     <p class="detail-summary">${escapeHtml(repo.summary)}</p>
     ${repo.description ? `<p class="detail-desc">저장소 원문 설명: ${escapeHtml(repo.description)}</p>` : ''}
-    <div class="badges" style="margin-top:12px">
-      ${repo.koreanDocs ? badge('한국어 문서', 'korean') : ''}
-      ${repo.commercialUse ? badge('상업 무료', 'korean') : badge('상업 사용 주의')}
-      ${repo.docker ? badge('Docker', 'docker') : ''}
-      ${repo.recent ? badge('최근 3개월 업데이트', 'korean') : ''}
-      ${repo.archived ? badge('보관된 저장소', 'archived') : ''}
-      ${tags}
-    </div>
+    <div class="badges" style="margin-top:12px">${cardBadges(repo)}${tags}</div>
+    <ul class="evidence" aria-label="판정 근거">
+      ${evidence}
+    </ul>
     ${repo.archived ? '<p class="detail-note">이 저장소는 GitHub에서 보관(archived) 상태입니다. 새 프로젝트에는 대체 라이브러리를 권장합니다.</p>' : ''}
-    ${
-      repo.koreanDocs
-        ? `<p class="detail-note">한국어 문서: ${repo.koreanDocsSource === 'readme' ? 'README에 한국어 설명이 포함되어 있습니다.' : '직접 확인한 한국어 문서가 있습니다.'}</p>`
-        : '<p class="detail-note">한국어 문서가 확인되지 않았습니다. 문서는 영어일 수 있습니다.</p>'
-    }
     <dl class="detail-stats">
       ${stats.map(([term, value]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}
     </dl>
@@ -267,6 +352,10 @@ function bindEvents() {
   el.reset.addEventListener('click', resetAll);
   el.resetEmpty.addEventListener('click', resetAll);
 
+  el.themeToggle.addEventListener('click', () => {
+    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
   el.grid.addEventListener('click', (event) => {
     const card = event.target.closest('.card');
     if (card) openDetail(card.dataset.repo);
@@ -300,16 +389,27 @@ function renderHeroStats() {
   const korean = state.repos.filter((repo) => repo.koreanDocs).length;
   const commercial = state.repos.filter((repo) => repo.commercialUse).length;
   const docker = state.repos.filter((repo) => repo.docker).length;
-  const items = [
-    `저장소 <b>${state.repos.length}</b>개`,
-    `한국어 문서 <b>${korean}</b>`,
-    `상업 무료 <b>${commercial}</b>`,
-    `Docker <b>${docker}</b>`,
+  const metrics = [
+    { value: state.repos.length, label: 'REPOS', note: '국산 저장소' },
+    { value: korean, label: 'KOREAN DOCS', note: '한국어 문서' },
+    { value: commercial, label: 'COMMERCIAL', note: '상업 무료 라이선스' },
+    { value: docker, label: 'DOCKER', note: 'Dockerfile 확인' },
   ];
-  el.heroStats.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+  el.heroStats.innerHTML = metrics
+    .map(
+      (metric) => `<div class="metric" role="group" aria-label="${escapeHtml(
+        `${metric.note} ${metric.value}개`,
+      )}">
+        <span class="metric-value">${metric.value}</span>
+        <span class="metric-label">${metric.label}</span>
+        <span class="metric-note">${metric.note}</span>
+      </div>`,
+    )
+    .join('');
 }
 
 async function init() {
+  applyTheme(currentTheme(), { persist: false });
   el.reportLink.href = issueUrl('[제보] 새 저장소 추가');
   readHash();
   buildTabs();

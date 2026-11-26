@@ -9,11 +9,28 @@
       content="한국 팀·기업·개인 개발자가 만든 오픈소스를 한국어 문서 지원, 상업 무료 라이선스, Docker 실행, 최근 업데이트 기준으로 한 화면에서 비교하는 디렉토리."
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f7f5" />
     <meta property="og:title" content="K-OSS Directory" />
     <meta property="og:description" content="국산 오픈소스, 한국어로 쓰는 것만 골랐습니다." />
     <meta property="og:type" content="website" />
+    <script>
+      /* 저장된 테마를 첫 페인트 전에 적용한다(FOUC 없음). 값이 없으면 OS 설정을 따른다. */
+      (function () {
+        var theme = 'light';
+        try {
+          var saved = localStorage.getItem('koss-theme');
+          theme =
+            saved === 'dark' || saved === 'light'
+              ? saved
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+        } catch (error) {
+          theme = 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4ed8'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='700' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E" />
   </head>
@@ -24,13 +41,37 @@
           <span class="brand-mark" aria-hidden="true">K</span>
           <span class="brand-text">K-OSS <em>Directory</em></span>
         </a>
-        <a
-          class="header-link"
-          href="https://github.com/YunhuPark/k-oss-directory"
-          target="_blank"
-          rel="noreferrer noopener"
-          >GitHub ↗</a
-        >
+        <div class="header-actions">
+          <a
+            class="header-link"
+            href="https://github.com/YunhuPark/k-oss-directory"
+            target="_blank"
+            rel="noreferrer noopener"
+            >GitHub ↗</a
+          >
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">
+            <span class="sr-only" id="theme-label">다크 모드로 전환</span>
+            <svg class="icon-sun" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <path
+                d="M10 1.8v2.1M10 16.1v2.1M1.8 10h2.1M16.1 10h2.1M4.2 4.2l1.5 1.5M14.3 14.3l1.5 1.5M15.8 4.2l-1.5 1.5M5.7 14.3l-1.5 1.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path
+                d="M16.2 12.4A6.6 6.6 0 0 1 7.6 3.8a6.8 6.8 0 1 0 8.6 8.6z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -41,13 +82,15 @@
           <a href="https://github.com/YunhuPark/k-oss-directory">GitHub 저장소</a>의 README 목록을 확인하세요.
         </p>
       </noscript>
+
       <section class="hero">
+        <p class="eyebrow">KOREAN OPEN SOURCE · CURATED</p>
         <h1>한국에서 만든 오픈소스,<br /><span class="accent">실무에 붙일 수 있는 것만.</span></h1>
         <p class="lede">
           한국어 문서 · 상업 무료 라이선스 · Docker 실행 · 최근 업데이트를 카드 한 장에서 비교합니다.
           별점 순위표가 아니라 <strong>지금 쓸 수 있는지</strong>를 먼저 봅니다.
         </p>
-        <ul class="hero-stats" id="hero-stats"></ul>
+        <div class="metrics" id="hero-stats" aria-label="수록 현황"></div>
       </section>
 
       <section class="controls" aria-label="검색과 필터">
@@ -61,7 +104,7 @@
             <input
               id="q"
               type="search"
-              placeholder="차트, React, 형태소처럼 기능으로 검색"
+              placeholder="차트, React, 형태소로 검색"
               autocomplete="off"
               spellcheck="false"
             />
@@ -72,9 +115,15 @@
           </div>
         </div>
 
-        <nav class="tabs" id="tabs" aria-label="카테고리"></nav>
+        <div class="filter-block">
+          <p class="field-label">CATEGORY</p>
+          <nav class="tabs" id="tabs" aria-label="카테고리"></nav>
+        </div>
 
-        <div class="chips" id="chips" aria-label="필터"></div>
+        <div class="filter-block">
+          <p class="field-label">FILTER <span class="field-hint">다중 선택</span></p>
+          <div class="chips" id="chips" aria-label="필터"></div>
+        </div>
 
         <div class="status-row">
           <p class="count" id="count" role="status" aria-live="polite"></p>
