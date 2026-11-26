@@ -1,38 +1,47 @@
 # K-OSS Directory
 
+**🔗 라이브 사이트 — [k-oss-directory.pages.dev](https://k-oss-directory.pages.dev)**
+
 **한국 개발자가 만든, 한국어로 쓸 수 있는 오픈소스를 한 화면에서.**
 
 GitHub Explore는 트렌딩만 보여주고, 국산 오픈소스는 언어 장벽·라이선스 불안·실행 장벽·관리 중단 때문에 매번 검색에서 걸러집니다.
 K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모아, 실무에 바로 붙일 수 있는지 네 가지로 판정해 카드 한 장에 보여줍니다.
 
-- 🇰🇷 **국산 한정** — 사람이 검수한 목록
-- 📘 **한국어 문서 여부** — README 한글 비중·`README.ko.md` 존재를 자동 판정
-- ⚖️ **상업 무료 라이선스** — SPDX 허용 목록(MIT·Apache-2.0·BSD·ISC·MPL-2.0·OFL-1.1 등) 대조
-- 🐳 **Docker 실행** — Dockerfile·공식 이미지 확인 + `최근 3개월` 필터
-- 🌗 **라이트/다크 모드** — 헤더의 토글 버튼, 선택은 `localStorage`에 저장
-- 📱 **모바일에서도 잘리지 않는 상세 모달** — 헤더·하단 버튼은 고정, 본문만 스크롤(360px에서 `GitHub 열기`가 항상 보임)
-- 📐 **첫 화면은 여백부터** — 숫자판·안내 줄 없이 **제목 → 검색 → 정렬·필터 → 카테고리 → 카드** 다섯 덩어리만 두고, 헤더·제목·검색·카드 사이 여백을 넓혀 360px에서도 카드 2장이 시원하게 보인다(수록 현황은 푸터 한 줄)
-- 🏷️ **카테고리 개별 필 칩** — 배경 트랙 없이 칩만 두어 `전체`가 한쪽에 붙어 보이지 않고, 넘칠 때는 좌우 페이드 + 가로 스크롤
-- 🔤 **Pretendard + 선명한 대비** — 본문 `#111827`/보조 `#4B5563`(다크 `#F3F4F6`/`#9CA3AF`), 카드에 32px GitHub 아바타와 `git clone` 복사 버튼
+## 이렇게 판정합니다
+
+- 🇰🇷 **국산 한정** — 한국 팀·기업·개인 개발자가 만든 저장소를 사람이 검수해 넣습니다.
+- 📘 **한국어 문서** — `README.ko.md` 같은 번역본 존재 여부와 README 한글 비중으로 자동 판정합니다.
+- ⚖️ **상업 무료 라이선스** — MIT·Apache-2.0·BSD·ISC·MPL-2.0·OFL-1.1 등 SPDX 허용 목록과 대조합니다.
+- 🐳 **Docker 실행** — 루트 `Dockerfile`·공식 이미지 여부를 확인하고, `최근 3개월` 푸시 필터를 함께 제공합니다.
+
+화면에서는 이 네 가지를 카드 한 장에 담고, 검색·카테고리·필터·정렬이 즉시 반영됩니다. 카드마다 `git clone` 명령을 복사할 수 있고, 라이트/다크 모드 선택은 `localStorage`에 남습니다. 모바일 360px에서도 상세 모달은 헤더·하단 버튼이 고정되고 본문만 스크롤되어 `GitHub 열기`가 가려지지 않습니다. 본문 글꼴은 Pretendard이고, 본문 대비는 라이트·다크 모두 4.5:1 이상입니다.
 
 <p>
   <img src="docs/screenshots/home-1280.png" alt="데스크톱 탐색 화면" width="800">
 </p>
 <p>
-  <img src="docs/screenshots/home-1280-dark.png" alt="다크 모드 탐색 화면" width="800">
+  <img src="docs/screenshots/home-1280-dark.png" alt="다크 모드 탐색 화면" width="392">
+  <img src="docs/screenshots/filter-docker-1280.png" alt="Docker 필터 적용 화면" width="392">
 </p>
 <p>
-  <img src="docs/screenshots/home-360.png" alt="모바일 탐색 화면" width="260">
+  <img src="docs/screenshots/home-360.png" alt="모바일 탐색 화면" width="240">
   <img src="docs/screenshots/detail-1280.png" alt="상세 모달" width="520">
 </p>
 
-## 지금 수록된 저장소 (93개, 2026-11-26 GitHub API로 검증)
+## 수록 현황
 
-이번 배치(2026-11-26)에서 한 일:
+**93개 저장소** — 전부 상업 무료 라이선스입니다. 한국어 문서 40 · Docker 12 · 최근 3개월 푸시 56 · 보관됨 3 (2026-11-26 GitHub API 검증).
 
-- 국내 기업·팀 조직 15곳(토스·네이버·카카오·카카오뱅크·라인·당근·우아한테크코스·스포카·하이퍼커넥트·엔씨소프트·데브시스터즈·뱅크샐러드·SK텔레콤·야놀자·리디)의 공개 저장소를 실측 조회해 38개를 추가했습니다.
-- 한국어 생태계 개인·커뮤니티 저장소(한글 처리·형태소 분석·공문서·공휴일·한국어 학습 자료) 15개를 더했습니다.
-- 40개 → **93개**. 추가한 53개 모두 `gh api repos/{owner}/{repo}`로 존재·아카이브 아님·상업 무료 라이선스를 다시 확인했습니다.
+| 분류 | 프론트엔드 | 백엔드·인프라 | 개발 도구 | AI·데이터 | 학습·자료 | 합계 |
+|---|---|---|---|---|---|---|
+| 저장소 | 26 | 19 | 26 | 13 | 9 | 93 |
+
+만든 곳은 **기업·팀 20곳**(토스 14 · 네이버 15 · 라인 12 · 당근 8 · 카카오 7 · 우아한테크코스 3 · SK텔레콤 2 외), **개인 개발자 16개**, **커뮤니티 3곳**입니다.
+2026-11-26에 40개 → 93개로 늘렸고, 새로 넣은 53개는 `gh api repos/{owner}/{repo}`로 존재·아카이브 아님·상업 무료 라이선스를 한 번 더 확인했습니다.
+별점·최근 푸시 같은 수치는 `public/data/catalog.json`이 매일 갱신하므로, 최신 값은 사이트에서 보는 편이 정확합니다.
+
+<details>
+<summary>전체 93개 목록 (2026-11-26 기준)</summary>
 
 | 저장소 | 만든 곳 | 분류 | ★ | 라이선스 | 한국어 문서 |
 |---|---|---|---|---|---|
@@ -130,12 +139,9 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
 | [sktelecom/bomlens](https://github.com/sktelecom/bomlens) | SK텔레콤 | 개발 도구 | 31 | Apache-2.0 |  |
 | [sktelecom/onot](https://github.com/sktelecom/onot) | SK텔레콤 | 개발 도구 | 16 | Apache-2.0 |  |
 
-> 별점 수치는 `public/data/catalog.json`이 매일 자동 갱신됩니다. 위 표는 작성 시점 기준입니다.
+</details>
 
-**분포**: 프론트엔드 26 · AI·데이터 13 · 백엔드·인프라 19 · 개발 도구 26 · 학습·자료 9.
-**판정**: 한국어 문서 40 · 상업 무료 라이선스 93 · Docker 12 · 최근 3개월 푸시 56 · 보관됨 3.
-
-## 구조
+## 저장소 구조
 
 ```
 data/repos.json              # 사람이 관리하는 큐레이션 원본 (무엇을 넣을지·분류·한 줄 소개)
@@ -154,19 +160,18 @@ docs/workflows/sync.yml      # 일일 동기화 워크플로 (.github/workflows�
 PRD.md                       # 기획서 (화면·데이터 모델·아키텍처·로드맵)
 ```
 
-**운영비 0원**: 서버·DB 없음. 정적 파일 + GitHub Actions(하루 1회) + Cloudflare Pages 무료 플랜.
+**운영비 0원** — 서버도 DB도 없습니다. 정적 파일 + GitHub Actions(하루 1회) + Cloudflare Pages 무료 플랜.
 
 ## 로컬에서 실행
 
 Node 22 이상이면 됩니다. 설치할 패키지는 없습니다.
 
 ```bash
-node scripts/serve.mjs          # → http://localhost:4173
-node --test scripts/tests/*.test.mjs   # 단위 테스트
+node scripts/serve.mjs                  # → http://localhost:4173
+node --test scripts/tests/*.test.mjs    # 단위 테스트
 ```
 
-`public/data/catalog.json`은 이미 저장소에 포함되어 있어 바로 뜹니다.
-데이터를 새로 받고 싶다면 (`gh` 로그인 상태에서):
+`public/data/catalog.json`이 저장소에 포함되어 있어 바로 뜹니다. 데이터를 새로 받고 싶다면 (`gh` 로그인 상태에서):
 
 ```bash
 node scripts/seed_from_gh.mjs
@@ -175,6 +180,7 @@ node scripts/seed_from_gh.mjs
 ## 저장소 추가·수정
 
 1. `data/repos.json`의 `repos` 배열에 항목을 추가합니다.
+
    ```jsonc
    {
      "repo": "owner/name",          // 필수
@@ -187,30 +193,13 @@ node scripts/seed_from_gh.mjs
      "addedAt": "2026-11-26"
    }
    ```
+
 2. `node scripts/seed_from_gh.mjs`로 `catalog.json`을 갱신합니다(또는 Actions 실행).
 3. PR을 올리면 검토 후 반영됩니다. 저장소를 직접 고치기 어렵다면 [제보 이슈](../../issues/new?template=submit-repo.yml)로 알려 주세요.
 
-**수록 기준**: ① 한국 팀·기업·개인 개발자가 만든 공개 저장소 ② 지금 실무에 쓸 수 있는 것(3년 이상 방치 + 대체재가 있으면 제외 또는 `보관됨` 표시) ③ 라이선스가 명시된 것.
+**수록 기준** — ① 한국 팀·기업·개인 개발자가 만든 공개 저장소 ② 지금 실무에 쓸 수 있는 것(3년 이상 방치 + 대체재가 있으면 제외하거나 `보관됨` 표시) ③ 라이선스가 명시된 것.
 
-## 자동 동기화 켜기
-
-GitHub App 권한 제한으로 워크플로 파일은 `docs/workflows/sync.yml`에 있습니다. 소유자가 GitHub 웹에서
-`.github/workflows/sync.yml` 파일을 만들어 내용을 붙여넣으면 매일 06:00 KST에 자동 실행됩니다.
-Actions 탭 → **저장소 메타데이터 동기화** → *Run workflow* 로 즉시 1회 실행할 수 있습니다.
-
-동기화는 실패에 강합니다.
-
-- 한 저장소가 실패해도 나머지는 갱신하고, 실패한 항목은 **직전 값 유지**
-- 전부 실패하면 기존 `catalog.json`을 **덮어쓰지 않고** 워크플로만 실패 (사이트는 계속 동작)
-- 파일을 쓰기 전에 스키마를 검증 (`assertCatalog`)
-
-## 배포 (Cloudflare Pages)
-
-1. Cloudflare Pages → *Create a project* → GitHub 저장소 연결
-2. **Build command: (없음)** · **Build output directory: `public`**
-3. 커밋마다 자동 배포. `data/repos.json`을 고치고 동기화가 돌면 사이트가 갱신됩니다.
-
-## 데이터 판정 규칙
+## 판정 규칙 상세
 
 | 판정 | 방법 |
 |---|---|
@@ -221,22 +210,37 @@ Actions 탭 → **저장소 메타데이터 동기화** → *Run workflow* 로 �
 
 ## 검증
 
-- 단위 테스트 29개 (`scripts/tests/`) — 라이선스 판정(OFL-1.1·직접 확인 값 포함), 한국어/Docker 판정, 말일 보정, 실패 시 직전 값 유지, 스키마 검증, 검색·필터·정렬
-- 헤드리스 브라우저 90개 항목 (360px·1280px, 라이트·다크) — 카드 수가 `catalog.json`과 일치하는지, 상단 숫자판·안내 줄이 없는지, 푸터 수록 현황 한 줄, 제목→검색→카드 여백과 카드 간격, 첫 화면 카드 2장 노출, 세부 필터 접힘/펼침·배지, 카테고리 필 칩·전환, 가로 넘침 0, 검색, 필터 AND, 정렬, 배지 색 체계, 테마 토글·저장, 라이트·다크 대비 4.5:1, 모달, 해시 복원, 키보드 조작, 콘솔 오류 0, 접근성 이름·터치 타깃
+- **단위 테스트 29개** (`scripts/tests/`) — 라이선스 판정(OFL-1.1·직접 확인 값 포함), 한국어/Docker 판정, 말일 보정, 실패 시 직전 값 유지, 스키마 검증, 검색·필터·정렬
+- **헤드리스 브라우저 90개 항목** — 360px·1280px, 라이트·다크에서 첫 화면 구성(제목 → 검색 → 정렬·필터 → 카테고리 → 카드), 카드 수가 `catalog.json`과 일치, 푸터 수록 현황 한 줄, 첫 화면 카드 2장 노출, 세부 필터 접힘/펼침, 카테고리 필 칩, 가로 넘침 0, 검색·필터 AND·정렬, 테마 토글·저장, 대비 4.5:1, 모달, 해시 복원, 키보드 조작, 콘솔 오류 0, 접근성 이름·터치 타깃
 
 ```bash
 node --test scripts/tests/*.test.mjs
 PUPPETEER_PATH=/path/to/puppeteer node scripts/ui_check.mjs --out downloads/k-oss-mvp
 ```
 
+## 배포 (Cloudflare Pages)
+
+1. Cloudflare Pages → *Create a project* → GitHub 저장소 연결
+2. **Build command: (없음)** · **Build output directory: `public`**
+3. 커밋마다 자동 배포. `data/repos.json`을 고치고 동기화가 돌면 사이트가 갱신됩니다.
+
+## 자동 동기화 켜기
+
+GitHub App 권한 제한으로 워크플로 파일은 `docs/workflows/sync.yml`에 있습니다. 소유자가 GitHub 웹에서 `.github/workflows/sync.yml` 파일을 만들어 내용을 붙여넣으면 매일 06:00 KST에 자동 실행됩니다. Actions 탭 → **저장소 메타데이터 동기화** → *Run workflow* 로 즉시 1회 실행할 수 있습니다.
+
+동기화는 실패에 강합니다.
+
+- 한 저장소가 실패해도 나머지는 갱신하고, 실패한 항목은 **직전 값 유지**
+- 전부 실패하면 기존 `catalog.json`을 **덮어쓰지 않고** 워크플로만 실패 (사이트는 계속 동작)
+- 파일을 쓰기 전에 스키마를 검증 (`assertCatalog`)
+
 ## 로드맵
 
 - [x] 시드 40개로 확장 (국내 19개 + OFL 폰트 2개 + 별표 저장소 4개, 2026-11-26)
-- [x] 시드 93개로 대량 확장 (국내 15개 조직 38개 + 개인·커뮤니티 15개, 2026-11-26)
+- [x] 93개로 대량 확장 (국내 기업·팀 15곳 38개 + 개인·커뮤니티 15개, 2026-11-26)
 - [ ] 태그 클릭 탐색, 상세 정적 페이지(`/r/{owner}/{repo}`), OG 이미지
 - [ ] 주간 인기순 (스타 증가량 스냅샷)
 
 ## 라이선스
 
-**아직 정하지 않았습니다.** 공개 저장소로 운영하려면 라이선스(예: MIT)를 정해 `LICENSE` 파일을 추가해야 합니다.
-`public/`의 코드와 `data/repos.json`의 큐레이션 목록은 별도로 정할 수 있습니다.
+**아직 정하지 않았습니다.** 공개 저장소로 운영하려면 라이선스(예: MIT)를 정해 `LICENSE` 파일을 추가해야 합니다. `public/`의 코드와 `data/repos.json`의 큐레이션 목록은 별도로 정할 수 있습니다.
