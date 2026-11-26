@@ -14,11 +14,11 @@
  *   PUPPETEER_PATH=/path/to/node_modules/puppeteer node scripts/ui_check.mjs --out /workspace/downloads/k-oss-mvp
  */
 import { createRequire } from 'node:module';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './serve.mjs';
-import { PAGE_SIZE, hasMcpSkill, selectRepos } from '../public/lib/filter.mjs';
+import { PAGE_SIZE, formatDate, formatStars, hasMcpSkill, selectRepos } from '../public/lib/filter.mjs';
 
 const require = createRequire(import.meta.url);
 const puppeteer = require(process.env.PUPPETEER_PATH || 'puppeteer');
@@ -59,6 +59,92 @@ function check(name, condition, detail = '') {
 /** 색·패널 전환 애니메이션이 끝난 뒤에 캐처한다. */
 function settle(page, ms = 260) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** 열려 있는 상세 모달의 글자 대비를 실제 색으로 계산한다(투명 배경은 부모 색을 따라간다). */
+function dialogContrast(page) {
+  return page.evaluate(() => {
+    const parse = (value) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    const alphaOf = (value) => {
+      const parts = (value.match(/[\d.]+/g) ?? []).map(Number);
+      return parts.length > 3 ? parts[3] : 1;
+    };
+    const luminance = (rgb) => {
+      const [r, g, b] = rgb.map((channel) => {
+        const c = channel / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (foreground, background) => {
+      const a = luminance(parse(foreground));
+      const b = luminance(parse(background));
+      return Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+    };
+    const effectiveBg = (node) => {
+      let current = node;
+      while (current) {
+        const bg = getComputedStyle(current).backgroundColor;
+        if (alphaOf(bg) > 0.01) return bg;
+        current = current.parentElement;
+      }
+      return getComputedStyle(document.body).backgroundColor;
+    };
+    const read = (selector) => {
+      const node = document.querySelector(selector);
+      if (!node) return null;
+      const style = getComputedStyle(node);
+      const bg = effectiveBg(node);
+      return { ratio: ratio(style.color, bg), color: style.color, bg };
+    };
+    return {
+      title: read('dialog[open] .detail-title'),
+      summary: read('dialog[open] .detail-summary'),
+      note: read('dialog[open] .quickstart-note'),
+      specTerm: read('dialog[open] .spec-grid dt'),
+      specValue: read('dialog[open] .spec-grid dd'),
+      mcpBadge: read('dialog[open] .judgment[data-kind="mcp"]'),
+      primary: read('dialog[open] .detail-actions .button-primary'),
+      secondary: read('dialog[open] .detail-actions .button:not(.button-primary)'),
+      footNote: read('dialog[open] .detail-foot-note span'),
+    };
+  });
+}
+
+/** 열려 있는 상세 모달이 화면 밖으로 잘리거나 글자가 잘리지 않는지 본다. */
+function dialogClip(page) {
+  return page.evaluate(() => {
+    const dialog = document.querySelector('dialog[open]');
+    const box = dialog.getBoundingClientRect();
+    const body = dialog.querySelector('.detail-body');
+    const actions = dialog.querySelector('.detail-actions');
+    const clippedLabels = [...dialog.querySelectorAll('.judgment, .detail-actions .button, .spec-grid dd')]
+      .filter((node) => node.scrollWidth > node.clientWidth + 1)
+      .map((node) => node.textContent.trim());
+    const boxOf = (node) => {
+      const rect = node.getBoundingClientRect();
+      return { label: node.textContent.trim(), left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+    };
+    const badges = [...dialog.querySelectorAll('.judgments > *')].map(boxOf);
+    const buttons = [...actions.querySelectorAll('.button')].map(boxOf);
+    return {
+      dialogInside: box.left >= -0.5 && box.right <= window.innerWidth + 0.5 && box.top >= -0.5 && box.bottom <= window.innerHeight + 0.5,
+      bodyNoHScroll: body.scrollWidth <= body.clientWidth + 1,
+      shellNoHScroll: dialog.querySelector('.detail-shell').scrollWidth <= dialog.querySelector('.detail-shell').clientWidth + 1,
+      clippedLabels,
+      badgesInside: badges.every(
+        (badge) => badge.left >= box.left - 1 && badge.right <= box.right + 1 && badge.top >= box.top - 1 && badge.bottom <= box.bottom + 1,
+      ),
+      buttonsInside: buttons.every(
+        (button) =>
+          button.left >= box.left - 1 &&
+          button.right <= box.right + 1 &&
+          button.bottom <= box.bottom + 1 &&
+          button.bottom <= window.innerHeight + 0.5,
+      ),
+      buttons,
+    };
+  });
 }
 
 /** 화면에 그려져야 하는 카드 이름 목록(카탈로그 기준 기대값) */
@@ -1430,6 +1516,79 @@ async function main() {
         `원문 설명 ${removedBlocks.description ? '남음' : '없음'} · 근거 박스 ${removedBlocks.evidenceKeys}개`,
       );
 
+      // 상세 모달 디테일: ① 빠른 시작 안내는 README 한 줄(LAST PUSH와 겹치는 날짜 문구 없음)
+      // ② 스펙 값은 카탈로그와 같고 OPEN ISSUES는 천 단위 쉼표 ③ MCP · 스킬 배지는 카드와 같은 판별
+      // ④ 하단 보조 버튼은 homepage 유무에 따라 README 보기 / 공식 사이트.
+      const firstRepo = repos.find((repo) => repo.repo === dialogTitle);
+      const expectedSpec = {
+        STARS: formatStars(firstRepo?.stars),
+        'OPEN ISSUES':
+          firstRepo?.openIssues === null || firstRepo?.openIssues === undefined
+            ? '—'
+            : Number(firstRepo.openIssues).toLocaleString('en-US'),
+        LICENSE: firstRepo?.license ?? '미지정',
+        'LAST PUSH': firstRepo?.pushedAt ? formatDate(firstRepo.pushedAt) : '정보 없음',
+        LANG: firstRepo?.language ?? '—',
+        BRANCH: firstRepo?.defaultBranch ?? '—',
+      };
+      const firstDetail = await page.evaluate(() => {
+        const spec = {};
+        for (const row of document.querySelectorAll('.spec-grid > div')) {
+          spec[row.querySelector('dt').textContent.trim()] = row.querySelector('dd').textContent.trim();
+        }
+        return {
+          spec,
+          note: document.querySelector('.quickstart-note')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+          staleNote: document.querySelector('.quickstart-warn')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+          judgments: [...document.querySelectorAll('.judgments > *')].map((node) => ({
+            label: node.textContent.trim(),
+            kind: node.getAttribute('data-kind'),
+            state: node.getAttribute('data-state'),
+          })),
+          actions: [...document.querySelectorAll('.detail-actions .button')].map((node) => ({
+            label: node.textContent.trim(),
+            href: node.getAttribute('href') ?? '',
+          })),
+        };
+      });
+      check(
+        `[${viewport.name}] 모달 빠른 시작은 README 한 줄(중복 날짜 문구 없음)`,
+        firstDetail.note === '설치·사용법은 저장소 README를 참고하세요.' &&
+          !/마지막 푸시/.test(firstDetail.note) &&
+          !/\d{4}-\d{2}-\d{2}/.test(firstDetail.note) &&
+          !/최근 3개월 내 변경이 있습니다/.test(firstDetail.note) &&
+          Boolean(firstRepo) &&
+          (firstRepo.recent ? firstDetail.staleNote === '' : firstDetail.staleNote.includes('최근 3개월 내 변경이 확인되지 않았습니다')),
+        `"${firstDetail.note}"${firstDetail.staleNote ? ` · 경고 "${firstDetail.staleNote}"` : ' · 경고 없음'}`,
+      );
+      check(
+        `[${viewport.name}] 모달 스펙 값·OPEN ISSUES 천 단위 쉼표`,
+        Object.entries(expectedSpec).every(([term, value]) => firstDetail.spec[term] === value) &&
+          /^\d{1,3}(,\d{3})*$/.test(firstDetail.spec['OPEN ISSUES']),
+        Object.entries(firstDetail.spec)
+          .map(([term, value]) => `${term} ${value}`)
+          .join(' · '),
+      );
+      const expectedSecondary = firstRepo?.homepage
+        ? { label: '공식 사이트 ↗', href: firstRepo.homepage }
+        : { label: 'README 보기 ↗', href: `${firstRepo?.url}#readme` };
+      check(
+        `[${viewport.name}] 모달 하단 버튼 이름·링크(homepage ${firstRepo?.homepage ? '있음' : '없음'})`,
+        firstDetail.actions.length === 2 &&
+          firstDetail.actions[0].label === 'GitHub 열기 ↗' &&
+          firstDetail.actions[1].label === expectedSecondary.label &&
+          firstDetail.actions[1].href === expectedSecondary.href,
+        firstDetail.actions.map((action) => `${action.label} ${action.href}`).join(' · '),
+      );
+      const firstMcp = firstDetail.judgments.find((judgment) => judgment.kind === 'mcp');
+      check(
+        `[${viewport.name}] 모달 MCP · 스킬 배지가 카드 판별과 일치`,
+        hasMcpSkill(firstRepo) ? Boolean(firstMcp) && firstMcp.label === 'MCP · 스킬' && firstMcp.state === 'on' : !firstMcp,
+        `카드 판별 ${hasMcpSkill(firstRepo)} · 모달 ${firstMcp ? firstMcp.label : '없음'} · 배지 줄 ${firstDetail.judgments
+          .map((judgment) => judgment.label)
+          .join(' / ')}`,
+      );
+
       // 모달 레이아웃: 헤더·하단 버튼은 고정, 본문만 스크롤
       const modalLayout = await page.evaluate(() => {
         const dialog = document.querySelector('dialog[open]');
@@ -1546,6 +1705,144 @@ async function main() {
       await page.click('.detail-close');
       await page.waitForFunction(() => !document.querySelector('dialog[open]'));
       check(`[${viewport.name}] 모달 닫힘`, true);
+
+      // 모달 스크린샷이 실제로 저장됐는지(열림 상태에서 찍은 파일)
+      const detailShot = await stat(path.join(OUT_DIR, `detail-${viewport.name}.png`));
+      check(
+        `[${viewport.name}] 상세 모달 열림 스크린샷 저장`,
+        detailShot.size > 5000,
+        `detail-${viewport.name}.png · ${detailShot.size} bytes`,
+      );
+
+      // 대표 저장소(morluto/rea: homepage·MCP · 스킬·OPEN ISSUES 1,195)로 나머지 디테일을 확인한다.
+      const featured = repos.find((repo) => repo.repo === 'morluto/rea');
+      const featuredCard = await page.$(`.card[data-repo="${featured.repo}"]`);
+      check(`[${viewport.name}] 대표 카드(morluto/rea) 찾음`, Boolean(featuredCard), featured.repo);
+      if (featuredCard) {
+        await featuredCard.click();
+        await page.waitForSelector('dialog[open]');
+        const featuredState = await page.evaluate(() => {
+          const spec = {};
+          for (const row of document.querySelectorAll('.spec-grid > div')) {
+            spec[row.querySelector('dt').textContent.trim()] = row.querySelector('dd').textContent.trim();
+          }
+          const mcp = document.querySelector('.judgments [data-kind="mcp"]');
+          const cardBadge = document.querySelector('.card[data-repo="morluto/rea"] .badge-mcp');
+          const styleOf = (node) => (node ? `${getComputedStyle(node).color} / ${getComputedStyle(node).backgroundColor}` : '');
+          return {
+            spec,
+            mcpLabel: mcp?.textContent.trim() ?? '',
+            mcpStyle: styleOf(mcp),
+            cardBadgeStyle: styleOf(cardBadge),
+            actions: [...document.querySelectorAll('.detail-actions .button')].map((node) => ({
+              label: node.textContent.trim(),
+              href: node.getAttribute('href') ?? '',
+            })),
+          };
+        });
+        check(
+          `[${viewport.name}] 모달 OPEN ISSUES 1,195 천 단위 쉼표`,
+          featuredState.spec['OPEN ISSUES'] === '1,195' && /^\d{1,3}(,\d{3})+$/.test(featuredState.spec['OPEN ISSUES']),
+          `OPEN ISSUES ${featuredState.spec['OPEN ISSUES']}`,
+        );
+        check(
+          `[${viewport.name}] 모달 MCP · 스킬 배지(카드와 같은 teal)`,
+          featuredState.mcpLabel === 'MCP · 스킬' &&
+            Boolean(featuredState.cardBadgeStyle) &&
+            featuredState.mcpStyle.split(' / ')[0] === featuredState.cardBadgeStyle.split(' / ')[0],
+          `모달 "${featuredState.mcpLabel}" ${featuredState.mcpStyle} · 카드 ${featuredState.cardBadgeStyle}`,
+        );
+        check(
+          `[${viewport.name}] homepage 있으면 공식 사이트 버튼`,
+          featuredState.actions.length === 2 &&
+            featuredState.actions[0].label === 'GitHub 열기 ↗' &&
+            featuredState.actions[1].label === '공식 사이트 ↗' &&
+            featuredState.actions[1].href === featured.homepage,
+          featuredState.actions.map((action) => `${action.label} ${action.href}`).join(' · '),
+        );
+
+        const lightContrast = await dialogContrast(page);
+        check(
+          `[${viewport.name}] 모달 글자 대비 4.5:1 이상(라이트)`,
+          Object.values(lightContrast).every((item) => item && item.ratio >= 4.5),
+          Object.entries(lightContrast)
+            .map(([key, item]) => `${key} ${item ? `${item.ratio}:1` : '없음'}`)
+            .join(' · '),
+        );
+        const clip = await dialogClip(page);
+        check(
+          `[${viewport.name}] 모달 잘림 없음(배지·버튼·가로 스크롤)`,
+          clip.dialogInside &&
+            clip.bodyNoHScroll &&
+            clip.shellNoHScroll &&
+            clip.clippedLabels.length === 0 &&
+            clip.badgesInside &&
+            clip.buttonsInside,
+          `화면 안 ${clip.dialogInside} · 스크롤 없음 ${clip.bodyNoHScroll}/${clip.shellNoHScroll} · 글자 잘림 ${
+            clip.clippedLabels.length
+          }개 · 배지/버튼 안 ${clip.badgesInside}/${clip.buttonsInside} · ${clip.buttons
+            .map((button) => `${button.label} ${Math.round(button.bottom)}`)
+            .join(', ')}`,
+        );
+        await screenshot(page, path.join(OUT_DIR, `detail-rea-${viewport.name}.png`), viewport);
+        const reaShot = await stat(path.join(OUT_DIR, `detail-rea-${viewport.name}.png`));
+        check(
+          `[${viewport.name}] 대표 모달 스크린샷 저장`,
+          reaShot.size > 5000,
+          `detail-rea-${viewport.name}.png · ${reaShot.size} bytes`,
+        );
+
+        // 다크 모드에서도 같은 모달이 4.5:1 이상인지(닫고 테마를 바꿔 다시 연다)
+        await page.click('.detail-close');
+        await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+        await page.click('#theme-toggle');
+        await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark');
+        await page.click(`.card[data-repo="${featured.repo}"]`);
+        await page.waitForSelector('dialog[open]');
+        await settle(page, 320);
+        const darkContrast = await dialogContrast(page);
+        check(
+          `[${viewport.name}] 모달 글자 대비 4.5:1 이상(다크)`,
+          Object.values(darkContrast).every((item) => item && item.ratio >= 4.5),
+          Object.entries(darkContrast)
+            .map(([key, item]) => `${key} ${item ? `${item.ratio}:1` : '없음'}`)
+            .join(' · '),
+        );
+        const darkClip = await dialogClip(page);
+        check(
+          `[${viewport.name}] 다크 모달 잘림 없음`,
+          darkClip.dialogInside && darkClip.bodyNoHScroll && darkClip.clippedLabels.length === 0 && darkClip.buttonsInside,
+          `화면 안 ${darkClip.dialogInside} · 글자 잘림 ${darkClip.clippedLabels.length}개 · 버튼 안 ${darkClip.buttonsInside}`,
+        );
+        await screenshot(page, path.join(OUT_DIR, `detail-rea-${viewport.name}-dark.png`), viewport);
+        await page.click('.detail-close');
+        await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+        await page.click('#theme-toggle');
+        await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light');
+      }
+
+      // 오래된 저장소: 날짜를 되풀이하지 않고 경고 한 줄만 붙는다.
+      const stale = selectRepos(repos, { sort: 'stars' })
+        .slice(0, PAGE_SIZE)
+        .find((repo) => !repo.recent && !repo.archived);
+      if (stale) {
+        await page.click(`.card[data-repo="${stale.repo}"]`);
+        await page.waitForSelector('dialog[open]');
+        const staleState = await page.evaluate(() => ({
+          note: document.querySelector('.quickstart-note')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+          warn: document.querySelector('.quickstart-warn')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+          warnColor: document.querySelector('.quickstart-warn') ? getComputedStyle(document.querySelector('.quickstart-warn')).color : '',
+        }));
+        check(
+          `[${viewport.name}] 오래된 저장소 경고 한 줄(날짜 중복 없음)`,
+          staleState.note === '설치·사용법은 저장소 README를 참고하세요.' &&
+            /최근 3개월 내 변경이 확인되지 않았습니다/.test(staleState.warn) &&
+            !/\d{4}-\d{2}-\d{2}/.test(staleState.warn),
+          `${stale.repo} · "${staleState.warn}" ${staleState.warnColor}`,
+        );
+        await page.click('.detail-close');
+        await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+      }
 
       // URL 해시 공유 상태
       await openFilters(page);

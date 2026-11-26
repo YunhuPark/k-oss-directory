@@ -503,6 +503,10 @@ function judgment(repo) {
     chip('commercial', '상업 무료', commercialOn, commercialTitle),
     chip('korean', repo.koreanDocs ? '한국어 문서' : '한국어 문서 없음', Boolean(repo.koreanDocs), koreanTitle),
     chip('docker', repo.docker ? 'Docker' : 'Docker 없음', Boolean(repo.docker), dockerTitle),
+    // 목록 카드의 MCP · 스킬 배지와 같은 판별을 모달 배지 줄에도 그대로 보여 준다.
+    hasMcpSkill(repo)
+      ? chip('mcp', 'MCP · 스킬', true, 'MCP 서버 또는 코딩 에이전트용 스킬·플러그인')
+      : '',
     repo.archived ? `<span class="judgment" data-kind="archived">보관됨</span>` : '',
   ]
     .filter(Boolean)
@@ -515,7 +519,12 @@ function detailHtml(repo) {
 
   const stats = [
     ['STARS', formatStars(repo.stars)],
-    ['OPEN ISSUES', repo.openIssues === null || repo.openIssues === undefined ? '—' : String(repo.openIssues)],
+    [
+      'OPEN ISSUES',
+      repo.openIssues === null || repo.openIssues === undefined
+        ? '—'
+        : Number(repo.openIssues).toLocaleString('en-US'),
+    ],
     ['LICENSE', repo.license ?? '미지정'],
     ['LAST PUSH', repo.pushedAt ? formatDate(repo.pushedAt) : '정보 없음'],
     ['LANG', repo.language ?? '—'],
@@ -544,11 +553,13 @@ function detailHtml(repo) {
           <code>${escapeHtml(cloneCommand).replaceAll('/', '/<wbr>')}</code>
           <button class="copy-button" type="button" data-copy="${escapeHtml(cloneCommand)}">복사</button>
         </div>
-        <p class="quickstart-note">
-          설치·사용법은 저장소 README를 따르세요. 마지막 푸시 ${
-            repo.pushedAt ? `${formatDate(repo.pushedAt)}(으)로` : '기록 없음 ·'
-          } 최근 3개월 내 변경${repo.recent ? '이 있습니다' : '은 확인되지 않았습니다'}.
-        </p>
+        <p class="quickstart-note">설치·사용법은 저장소 README를 참고하세요.</p>
+        ${
+          // LAST PUSH 지표와 겹치는 날짜 문구는 빼고, 오래된 저장소만 짧게 경고한다.
+          repo.recent
+            ? ''
+            : '<p class="quickstart-note quickstart-warn">최근 3개월 내 변경이 확인되지 않았습니다. 도입 전 저장소 상태를 확인하세요.</p>'
+        }
       </section>
       ${
         repo.archived
@@ -566,8 +577,8 @@ function detailHtml(repo) {
       <a class="button button-primary" href="${escapeHtml(repo.url)}" target="_blank" rel="noreferrer noopener">GitHub 열기 ↗</a>
       ${
         repo.homepage
-          ? `<a class="button" href="${escapeHtml(repo.homepage)}" target="_blank" rel="noreferrer noopener">문서 보기 ↗</a>`
-          : ''
+          ? `<a class="button" href="${escapeHtml(repo.homepage)}" target="_blank" rel="noreferrer noopener">공식 사이트 ↗</a>`
+          : `<a class="button" href="${escapeHtml(`${repo.url}#readme`)}" target="_blank" rel="noreferrer noopener">README 보기 ↗</a>`
       }
     </div>`;
 }

@@ -1344,6 +1344,13 @@ a:hover {
   color: var(--purple-text);
 }
 
+/* 목록 카드의 MCP · 스킬 배지(teal)와 같은 색을 모달 배지 줄에서도 쓴다. */
+.judgment[data-kind="mcp"][data-state="on"] {
+  border-color: transparent;
+  background: var(--teal-bg);
+  color: var(--teal-text);
+}
+
 .judgment[data-kind="archived"] {
   border-color: transparent;
   background: var(--orange-bg);
@@ -1456,6 +1463,12 @@ a:hover {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* 오래된 저장소 경고: 날짜를 되풀이하지 않고 상태만 한 줄로 알린다. */
+.quickstart-warn {
+  color: var(--orange-text);
+  font-weight: 600;
 }
 
 .detail-foot-note {
