@@ -1,4 +1,4 @@
-import { FILTERS, SORTS, selectRepos, formatStars, formatRelativeDate, formatDate } from './lib/filter.mjs';
+import { FILTERS, SORTS, selectRepos, formatStars, formatDate } from './lib/filter.mjs';
 
 const REPO_URL = 'https://github.com/YunhuPark/k-oss-directory';
 const ISSUE_NEW = `${REPO_URL}/issues/new`;
@@ -78,7 +78,7 @@ function applyTheme(theme, { persist = true } = {}) {
   el.themeToggle.setAttribute('aria-pressed', String(next === 'dark'));
   el.themeToggle.setAttribute('title', toDark ? '다크 모드로 전환' : '라이트 모드로 전환');
   el.themeLabel.textContent = toDark ? '다크 모드로 전환' : '라이트 모드로 전환';
-  if (el.themeColor) el.themeColor.setAttribute('content', next === 'dark' ? '#0d0e10' : '#f6f6f3');
+  if (el.themeColor) el.themeColor.setAttribute('content', next === 'dark' ? '#0d0e10' : '#f4f5f7');
 }
 
 /* ── URL 해시 ⇄ 상태 (공유 가능한 링크) ─────────────── */
@@ -171,10 +171,20 @@ function cardBadges(repo) {
     .join('');
 }
 
+/** 32px GitHub 아바타. 이미지가 실패하면 아래 이니셜 타일이 그대로 보인다. */
+function logoTile(repo, extraClass = '') {
+  const initials = String(repo.owner || repo.vendor || repo.name || '?').slice(0, 1);
+  const src = `https://github.com/${encodeURIComponent(repo.owner || '')}.png?size=64`;
+  return `<span class="card-logo ${extraClass}" aria-hidden="true">
+      <span class="card-logo-init">${escapeHtml(initials)}</span>
+      <img src="${src}" alt="" width="32" height="32" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()" />
+    </span>`;
+}
+
 function cardHtml(repo) {
   const meta = [
     ['LICENSE', repo.license ?? '미지정'],
-    ['PUSHED', repo.pushedAt ? formatDate(repo.pushedAt) : '—'],
+    ['UPDATED', repo.pushedAt ? formatDate(repo.pushedAt) : '—'],
     ['LANG', repo.language ?? '—'],
   ]
     .map(([term, value]) => `<div><dt>${term}</dt><dd>${escapeHtml(value)}</dd></div>`)
@@ -184,15 +194,19 @@ function cardHtml(repo) {
     `${repo.repo} 상세 보기`,
   )}">
       <div class="card-top">
-        <h3 class="card-title">${escapeHtml(repo.name)}</h3>
-        <span class="card-vendor">${escapeHtml(repo.vendor)}</span>
+        ${logoTile(repo)}
+        <div class="card-heading">
+          <h3 class="card-title">${escapeHtml(repo.name)}</h3>
+          <p class="card-vendor">${escapeHtml(repo.vendor)} · ${escapeHtml(repo.owner)}</p>
+        </div>
+        <span class="card-stars" title="GitHub 스타">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.6l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.4l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+          ${formatStars(repo.stars)}
+        </span>
       </div>
       <p class="card-summary">${escapeHtml(repo.summary)}</p>
       <div class="badges">${cardBadges(repo)}</div>
-      <dl class="card-meta">
-        ${meta}
-        <div class="card-stars"><dt>STARS</dt><dd>${formatStars(repo.stars)}</dd></div>
-      </dl>
+      <dl class="card-meta">${meta}</dl>
     </article>`;
 }
 
@@ -217,82 +231,96 @@ function render() {
 }
 
 /* ── 상세 모달 ──────────────────────────────────── */
-function evidenceItem(mark, key, text) {
-  return `<li class="evidence-item" data-mark="${mark}">
-      <span class="evidence-mark" aria-hidden="true">${mark === 'check' ? '✓' : '?'}</span>
-      <span class="evidence-key">${escapeHtml(key)}</span>
-      <span>${escapeHtml(text)}</span>
-    </li>`;
+function judgment(repo) {
+  const commercialOn = Boolean(repo.commercialUse);
+  const commercialTitle = !commercialOn
+    ? '라이선스 미지정 또는 비상업 라이선스 — 원문 확인 필요'
+    : repo.licenseSource === 'github'
+      ? 'GitHub API로 라이선스 실측'
+      : repo.licenseSource === 'curated'
+        ? 'LICENSE 원문을 직접 확인한 값'
+        : '라이선스 정보 없음';
+
+  const koreanTitle = !repo.koreanDocs
+    ? '한국어 문서 없음(영어 문서)'
+    : repo.koreanDocsSource === 'curated'
+      ? '한국어 문서를 직접 확인'
+      : '한국어 README 또는 README.ko.md 확인';
+
+  const dockerTitle = !repo.docker
+    ? '루트에 Dockerfile 없음'
+    : repo.dockerSource === 'curated'
+      ? 'Dockerfile 직접 확인'
+      : '루트 Dockerfile 또는 docker 토픽 확인';
+
+  const chip = (kind, label, on, title) =>
+    `<span class="judgment" data-kind="${kind}" data-state="${on ? 'on' : 'off'}" title="${escapeHtml(title)}">${escapeHtml(
+      label,
+    )}</span>`;
+
+  return [
+    chip('commercial', '상업 무료', commercialOn, commercialTitle),
+    chip('korean', repo.koreanDocs ? '한국어 문서' : '한국어 문서 없음', Boolean(repo.koreanDocs), koreanTitle),
+    chip('docker', repo.docker ? 'Docker' : 'Docker 없음', Boolean(repo.docker), dockerTitle),
+    repo.archived ? `<span class="judgment" data-kind="archived">보관됨</span>` : '',
+  ]
+    .filter(Boolean)
+    .join('');
 }
 
 function detailHtml(repo) {
   const now = state.generatedAt ? new Date(state.generatedAt) : new Date();
-  const tags = (repo.tags ?? []).map((tag) => `<span class="badge">${escapeHtml(tag)}</span>`).join('');
-
-  const evidence = [
-    evidenceItem(
-      repo.licenseSource === 'github' ? 'check' : 'question',
-      'LICENSE',
-      repo.licenseSource === 'github'
-        ? `${repo.license ?? '미지정'} · GitHub API 실측`
-        : repo.licenseSource === 'curated'
-          ? `${repo.license} · 원문 직접 확인`
-          : '라이선스 파일 없음 · 상업 사용 전 확인 필요',
-    ),
-    evidenceItem(
-      repo.koreanDocs ? (repo.koreanDocsSource === 'curated' ? 'question' : 'check') : 'question',
-      'KOREAN',
-      repo.koreanDocs
-        ? repo.koreanDocsSource === 'curated'
-          ? '한국어 문서 직접 확인'
-          : '한국어 README 또는 README.ko.md'
-        : '한국어 문서 없음(영어 문서)',
-    ),
-    evidenceItem(
-      repo.docker ? (repo.dockerSource === 'curated' ? 'question' : 'check') : 'question',
-      'DOCKER',
-      repo.docker
-        ? repo.dockerSource === 'curated'
-          ? 'Dockerfile 직접 확인'
-          : '루트 Dockerfile 또는 docker 토픽'
-        : 'Dockerfile 없음',
-    ),
-    evidenceItem(
-      repo.recent ? 'check' : 'question',
-      'PUSHED',
-      repo.pushedAt ? `${formatDate(repo.pushedAt)} · ${formatRelativeDate(repo.pushedAt, now)}` : '푸시 기록 없음',
-    ),
-    repo.archived ? evidenceItem('question', 'ARCHIVED', 'GitHub에서 보관된 저장소') : '',
-  ]
-    .filter(Boolean)
-    .join('');
+  const cloneCommand = `git clone https://github.com/${repo.repo}.git`;
 
   const stats = [
     ['STARS', formatStars(repo.stars)],
-    ['OPEN ISSUES', repo.openIssues === null ? '—' : String(repo.openIssues)],
+    ['OPEN ISSUES', repo.openIssues === null || repo.openIssues === undefined ? '—' : String(repo.openIssues)],
     ['LICENSE', repo.license ?? '미지정'],
-    ['PUSHED', repo.pushedAt ? formatDate(repo.pushedAt) : '정보 없음'],
+    ['LAST PUSH', repo.pushedAt ? formatDate(repo.pushedAt) : '정보 없음'],
     ['LANG', repo.language ?? '—'],
     ['BRANCH', repo.defaultBranch ?? '—'],
   ];
 
   return `<div class="detail-head">
-      <div>
-        <p class="detail-vendor">${escapeHtml(repo.vendor)} · ${escapeHtml(CATEGORY_LABELS[repo.category] ?? repo.category)}</p>
+      ${logoTile(repo, 'detail-logo')}
+      <div class="detail-heading">
+        <p class="detail-vendor">${escapeHtml(repo.vendor)} · ${escapeHtml(
+          CATEGORY_LABELS[repo.category] ?? repo.category,
+        )}</p>
         <h2 class="detail-title" id="detail-title">${escapeHtml(repo.repo)}</h2>
       </div>
       <button class="detail-close" type="button" data-close aria-label="닫기">✕</button>
     </div>
-    <p class="detail-summary">${escapeHtml(repo.summary)}</p>
-    ${repo.description ? `<p class="detail-desc">저장소 원문 설명: ${escapeHtml(repo.description)}</p>` : ''}
-    <div class="badges" style="margin-top:12px">${cardBadges(repo)}${tags}</div>
-    <ul class="evidence" aria-label="판정 근거">
-      ${evidence}
-    </ul>
-    ${repo.archived ? '<p class="detail-note">이 저장소는 GitHub에서 보관(archived) 상태입니다. 새 프로젝트에는 대체 라이브러리를 권장합니다.</p>' : ''}
-    <dl class="detail-stats">
-      ${stats.map(([term, value]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}
-    </dl>
+    <div class="detail-body">
+      <p class="detail-summary">${escapeHtml(repo.summary)}</p>
+      <div class="judgments" aria-label="핵심 판정">${judgment(repo)}</div>
+      <dl class="spec-grid">
+        ${stats.map(([term, value]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}
+      </dl>
+      <section class="quickstart" aria-label="빠른 시작">
+        <p class="block-label">QUICK START</p>
+        <div class="copy-row">
+          <code>${escapeHtml(cloneCommand).replaceAll('/', '/<wbr>')}</code>
+          <button class="copy-button" type="button" data-copy="${escapeHtml(cloneCommand)}">복사</button>
+        </div>
+        <p class="quickstart-note">
+          설치·사용법은 저장소 README를 따르세요. 마지막 푸시 ${
+            repo.pushedAt ? `${formatDate(repo.pushedAt)}(으)로` : '기록 없음 ·'
+          } 최근 3개월 내 변경${repo.recent ? '이 있습니다' : '은 확인되지 않았습니다'}.
+        </p>
+      </section>
+      ${
+        repo.archived
+          ? '<p class="detail-foot-note">이 저장소는 GitHub에서 보관(archived) 상태입니다. 새 프로젝트에는 대체 라이브러리를 권장합니다.</p>'
+          : ''
+      }
+      <p class="detail-foot-note">
+        <span>라이선스 판정은 참고용입니다. 사용 전 LICENSE 원문을 확인하세요. · ${escapeHtml(
+          `${formatDate(repo.pushedAt ?? new Date(now).toISOString())} 기준`,
+        )}</span>
+        <a href="${escapeHtml(issueUrl(`[제보] ${repo.repo} 정보 수정`))}" target="_blank" rel="noreferrer noopener">정보가 틀렸어요 ↗</a>
+      </p>
+    </div>
     <div class="detail-actions">
       <a class="button button-primary" href="${escapeHtml(repo.url)}" target="_blank" rel="noreferrer noopener">GitHub 열기 ↗</a>
       ${
@@ -300,9 +328,7 @@ function detailHtml(repo) {
           ? `<a class="button" href="${escapeHtml(repo.homepage)}" target="_blank" rel="noreferrer noopener">문서 보기 ↗</a>`
           : ''
       }
-      <a class="button" href="${issueUrl(`[제보] ${repo.repo} 정보 수정`)}" target="_blank" rel="noreferrer noopener">정보가 틀렸어요</a>
-    </div>
-    <p class="detail-note">라이선스 판정은 참고용입니다. 사용 전 GitHub의 LICENSE 원문을 확인하세요.</p>`;
+    </div>`;
 }
 
 function openDetail(repoName) {
@@ -311,6 +337,47 @@ function openDetail(repoName) {
   el.detailInner.innerHTML = detailHtml(repo);
   el.detail.showModal();
   el.detailInner.querySelector('[data-close]')?.focus();
+}
+
+async function copyCommand(button) {
+  const command = button.dataset.copy ?? '';
+  const legacyCopy = () => {
+    const area = document.createElement('textarea');
+    area.value = command;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '0';
+    area.style.opacity = '0';
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    return ok;
+  };
+
+  try {
+    let done = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(command);
+        done = true;
+      } catch (error) {
+        /* 권한·포커스가 없으면 아래 예비 방법으로 넘어간다 */
+      }
+    }
+    if (!done && !legacyCopy()) throw new Error('clipboard unavailable');
+    button.dataset.copied = 'true';
+    button.textContent = '복사됨';
+    setTimeout(() => {
+      button.dataset.copied = 'false';
+      button.textContent = '복사';
+    }, 1600);
+  } catch (error) {
+    button.textContent = '복사 실패';
+    setTimeout(() => {
+      button.textContent = '복사';
+    }, 1600);
+  }
 }
 
 /* ── 이벤트 ────────────────────────────────────── */
@@ -372,6 +439,8 @@ function bindEvents() {
   el.detail.addEventListener('click', (event) => {
     if (event.target === el.detail) el.detail.close();
     if (event.target.closest('[data-close]')) el.detail.close();
+    const copyButton = event.target.closest('[data-copy]');
+    if (copyButton) copyCommand(copyButton);
   });
 
   el.detail.addEventListener('close', () => {

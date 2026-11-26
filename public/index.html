@@ -2,14 +2,14 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>K-OSS Directory — 국산 오픈소스, 한국어로 쓰는 것만</title>
     <meta
       name="description"
       content="한국 팀·기업·개인 개발자가 만든 오픈소스를 한국어 문서 지원, 상업 무료 라이선스, Docker 실행, 최근 업데이트 기준으로 한 화면에서 비교하는 디렉토리."
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="theme-color" content="#f4f5f7" />
     <meta property="og:title" content="K-OSS Directory" />
     <meta property="og:description" content="국산 오픈소스, 한국어로 쓰는 것만 골랐습니다." />
     <meta property="og:type" content="website" />
@@ -31,8 +31,14 @@
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
+    <!-- Pretendard: 한글·영문·숫자 가독성을 위해 쓰는 유일한 외부 자원(동적 서브셋, OFL-1.1). -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4ed8'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='700' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231b64da'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='700' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E" />
   </head>
   <body>
     <header class="site-header">
@@ -52,12 +58,12 @@
           <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">
             <span class="sr-only" id="theme-label">다크 모드로 전환</span>
             <svg class="icon-sun" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.6" />
               <path
                 d="M10 1.8v2.1M10 16.1v2.1M1.8 10h2.1M16.1 10h2.1M4.2 4.2l1.5 1.5M14.3 14.3l1.5 1.5M15.8 4.2l-1.5 1.5M5.7 14.3l-1.5 1.5"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.5"
+                stroke-width="1.6"
                 stroke-linecap="round"
               />
             </svg>
@@ -66,7 +72,7 @@
                 d="M16.2 12.4A6.6 6.6 0 0 1 7.6 3.8a6.8 6.8 0 1 0 8.6 8.6z"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.5"
+                stroke-width="1.6"
                 stroke-linejoin="round"
               />
             </svg>
@@ -93,13 +99,22 @@
         <div class="metrics" id="hero-stats" aria-label="수록 현황"></div>
       </section>
 
+      <section class="howto" aria-label="사용법">
+        <p class="howto-label">어떻게 쓰나요?</p>
+        <ol class="howto-steps">
+          <li><span class="howto-num" aria-hidden="true">1</span>필터로 조건을 좁히고</li>
+          <li><span class="howto-num" aria-hidden="true">2</span>카드를 눌러 판정을 확인한 뒤</li>
+          <li><span class="howto-num" aria-hidden="true">3</span>GitHub에서 설치하세요</li>
+        </ol>
+      </section>
+
       <section class="controls" aria-label="검색과 필터">
         <div class="search-row">
           <div class="search">
             <label class="sr-only" for="q">검색</label>
             <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true">
-              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8" />
-              <path d="M13 13l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.9" />
+              <path d="M13 13l4 4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
             </svg>
             <input
               id="q"
@@ -173,7 +188,7 @@
     </footer>
 
     <dialog id="detail" class="detail" aria-labelledby="detail-title">
-      <div class="detail-inner" id="detail-inner"></div>
+      <div class="detail-shell" id="detail-inner"></div>
     </dialog>
 
     <script type="module" src="./app.js"></script>

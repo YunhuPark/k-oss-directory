@@ -235,6 +235,13 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 **현재 분포(2026-11-26 동기화 결과)**: 저장소 93개 · 프론트엔드 26 / 개발 도구 26 / 백엔드·인프라 19 / AI·데이터 13 / 학습·자료 9.
 판정: 한국어 문서 40 · 상업 무료 93 · Docker 12 · 최근 3개월 56 · 보관됨 3(`nhn/tui.editor`, `kakaobrain/pororo`, `supertone-oss-archive/supertonic`).
 
+**UI v3(2026-11-26) — 모바일 스크린샷에서 드러난 결함 수정 + 카드 디자인 개편.**
+
+1. 상세 모달이 360px 모바일에서 하단 `GitHub 열기 / 문서 보기` 버튼을 잘라먹던 문제: `<dialog>` 안을 `display:flex; flex-direction:column; max-height:min(88dvh,720px)`로 바꾸고 헤더·하단 액션 바를 `flex-shrink:0`, 본문만 `overflow-y:auto`로 스크롤하게 했다. `ui_check.mjs`가 360px에서 버튼의 `boundingBox.bottom <= innerHeight`를 매번 검사한다.
+2. 읽기 힘든 회색 본문·시스템 폰트: Pretendard를 적용하고 본문 `#111827`/보조 `#4B5563`(다크 `#F3F4F6`/`#9CA3AF`)로 대비를 올렸다. `ui_check.mjs`가 실제 계산한 명도 대비를 4.5:1과 비교한다.
+3. 상세의 `저장소 원문 설명:` 영문 블록과 4줄짜리 회색 근거 박스(`? KOREAN` 식)를 없애고, **핵심 판정 칩 3개(상업 무료·한국어 문서·Docker) + 2열 스펙 그리드 + 빠른 시작(git clone 복사)**으로 정리했다.
+4. 카드 머리에 32px GitHub 아바타(실패 시 이니셜 타일), 라이트 `#F4F5F7` 바탕 위 순백 카드(14px 라운드, 호버 리프트), 다크 `#0D0E10` 위 `#16181D` 카드, 상단 "어떻게 쓰나요?" 1줄 가이드.
+
 **다음 배치 후보(추측 금지 — 투입 전 `gh api repos/{owner}/{repo}` 재검증)**: 실측만 해 두고 이번에 넣지 않은 `kakao/detek`·`line/stellite`·`coupang/spring-data-requery`·`naver/egjs-view3d`·`toss/yarn-plugin-workspace-since`(라이선스 미명시), `kakaobrain/torchgpipe`·`kakaobrain/fast-autoaugment`·`hyperconnect/TC-ResNet`(연구 재현 코드라 후순위). 계속 제외: `toss/slash`·`nhn/tui.calendar`·`naver/ngrinder`·`line/tsr`(보관됨), `naver/fe-news`·`toss/technical-writing`(라이선스 미명시), `naver/dust3r`·`naver/mast3r`(비상업).
 
 > 시드 확장 원칙: **스타 수보다 "지금 실무에 붙일 수 있는가"**. 3년 이상 커밋이 없고 대체재가 있으면 제외하거나 `보관됨`으로 표시한다.
@@ -244,7 +251,9 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 ## 10. 비기능 요구사항
 
-- **성능**: 초기 HTML+CSS+JS < 60KB(gzip 전), `catalog.json` < 100KB. 외부 CDN·폰트·분석 스크립트 0개. 첫 화면 LCP < 1.5초(3G 기준).
+- **성능**: 초기 HTML+CSS+JS < 60KB(gzip 전), `catalog.json` < 100KB. 외부 분석 스크립트 0개. 첫 화면 LCP < 1.5초(3G 기준).
+  - **외부 폰트 CDN 허용 예외(2026-11-26)**: 본문·라벨 가독성을 위해 Pretendard(`orioncactus/pretendard`, OFL-1.1)를 JSDelivr의 동적 서브셋 CSS(`pretendardvariable-dynamic-subset.min.css`)로만 불러온다. 한국어 글리프를 페이지에 실제로 쓰인 만큼만 받아 오고, 실패해도 시스템 폰트로 자연스럽게 대체된다(`font-display: swap`). 이 한 줄 외의 외부 자원(분석·트래커·이미지 CDN)은 계속 0개를 유지한다. 카드 아바타는 `https://github.com/{owner}.png`(GitHub 자체 이미지)만 쓰고 실패 시 이니셜 타일로 대체한다.
+- **대비**: 라이트 본문 `#111827`/보조 `#4B5563`, 다크 본문 `#F3F4F6`/보조 `#9CA3AF`. `ui_check.mjs`가 본문·리드·카드 요약의 명도 대비를 계산해 4.5:1 이상인지 매번 검사한다.
 - **반응형**: 360px~1440px에서 가로 스크롤 0. 터치 타깃 최소 44px.
 - **접근성**: 키보드만으로 검색·필터·모달 조작 가능, `aria-pressed`/`aria-live`(결과 수) 사용, 명도 대비 4.5:1 이상.
 - **SEO**: 저장소 이름이 URL 해시가 아닌 정적 `index.html` 제목·메타 설명에 포함. (MVP는 단일 페이지, 상세는 로드맵에서 `/r/{owner}/{repo}` 정적 페이지로 승격)
