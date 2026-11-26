@@ -372,7 +372,81 @@ try {
       `${sortRestored.value} · ${sortRestored.hash || '(해시 없음)'}`,
     );
 
-    await page.screenshot({ path: `${OUT}/${TAG}-${viewport.name}.png` });
+    await page.screenshot({ path: `${OUT}/${TAG}-home-${viewport.name}.png` });
+
+    // 상세 모달: 대표 저장소(rea)로 천 단위 쉼표·MCP · 스킬 배지·공식 사이트 버튼·안내 문구를 확인한다.
+    // 이 스크린샷이 ${TAG}-360.png / ${TAG}-1280.png 로 남는다.
+    const rea = (liveCatalog.repos ?? []).find((repo) => repo.repo === 'morluto/rea');
+    if (rea) {
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector(`.card[data-repo="${rea.repo}"]`);
+      await page.click(`.card[data-repo="${rea.repo}"]`);
+      await page.waitForSelector('dialog[open]');
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const modalState = await page.evaluate(() => {
+        const spec = {};
+        for (const row of document.querySelectorAll('.spec-grid > div')) {
+          spec[row.querySelector('dt').textContent.trim()] = row.querySelector('dd').textContent.trim();
+        }
+        const dialog = document.querySelector('dialog[open]');
+        const actions = dialog.querySelector('.detail-actions').getBoundingClientRect();
+        return {
+          title: document.getElementById('detail-title').textContent.trim(),
+          spec,
+          note: document.querySelector('.quickstart-note')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+          mcp: dialog.querySelector('.judgments [data-kind="mcp"]')?.textContent.trim() ?? '',
+          actions: [...dialog.querySelectorAll('.detail-actions .button')].map((node) => ({
+            label: node.textContent.trim(),
+            href: node.getAttribute('href') ?? '',
+          })),
+          actionsBottom: Math.round(actions.bottom),
+          actionsInside: actions.bottom <= dialog.getBoundingClientRect().bottom + 1 && actions.bottom <= window.innerHeight + 0.5,
+        };
+      });
+      check(
+        `[${viewport.name}] 라이브 모달 OPEN ISSUES ${Number(rea.openIssues).toLocaleString('en-US')} 천 단위 쉼표`,
+        modalState.title === rea.repo && modalState.spec['OPEN ISSUES'] === Number(rea.openIssues).toLocaleString('en-US'),
+        `${modalState.title} · OPEN ISSUES ${modalState.spec['OPEN ISSUES']}`,
+      );
+      check(
+        `[${viewport.name}] 라이브 모달 안내 문구·MCP · 스킬 배지`,
+        modalState.note === '설치·사용법은 저장소 README를 참고하세요.' &&
+          !/\d{4}-\d{2}-\d{2}/.test(modalState.note) &&
+          (hasMcpSkill(rea) ? modalState.mcp === 'MCP · 스킬' : modalState.mcp === ''),
+        `"${modalState.note}" · MCP "${modalState.mcp}"`,
+      );
+      check(
+        `[${viewport.name}] 라이브 모달 공식 사이트 버튼·잘림 없음`,
+        modalState.actions.length === 2 &&
+          modalState.actions[1].label === '공식 사이트 ↗' &&
+          modalState.actions[1].href === rea.homepage &&
+          modalState.actionsInside,
+        `${modalState.actions.map((action) => `${action.label} ${action.href}`).join(' · ')} · 하단 ${modalState.actionsBottom}px`,
+      );
+      await page.screenshot({ path: `${OUT}/${TAG}-${viewport.name}.png` });
+      await page.click('.detail-close');
+      await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+
+      // homepage가 없는 저장소는 README 보기 버튼으로 GitHub README를 연다.
+      const noHome = (liveCatalog.repos ?? []).find((repo) => repo.repo === 'sindresorhus/awesome');
+      if (noHome) {
+        await page.click(`.card[data-repo="${noHome.repo}"]`);
+        await page.waitForSelector('dialog[open]');
+        const readmeButton = await page.evaluate(() => {
+          const buttons = [...document.querySelectorAll('.detail-actions .button')];
+          return buttons.map((node) => ({ label: node.textContent.trim(), href: node.getAttribute('href') ?? '' }));
+        });
+        check(
+          `[${viewport.name}] 라이브 모달 homepage 없으면 README 보기`,
+          readmeButton.length === 2 &&
+            readmeButton[1].label === 'README 보기 ↗' &&
+            readmeButton[1].href === `${noHome.url}#readme`,
+          readmeButton.map((button) => `${button.label} ${button.href}`).join(' · '),
+        );
+        await page.click('.detail-close');
+        await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+      }
+    }
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
