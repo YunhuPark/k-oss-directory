@@ -10,6 +10,8 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
 - ⚖️ **상업 무료 라이선스** — SPDX 허용 목록(MIT·Apache-2.0·BSD·ISC·MPL-2.0·OFL-1.1 등) 대조
 - 🐳 **Docker 실행** — Dockerfile·공식 이미지 확인 + `최근 3개월` 필터
 - 🌗 **라이트/다크 모드** — 헤더의 토글 버튼, 선택은 `localStorage`에 저장
+- 📱 **모바일에서도 잘리지 않는 상세 모달** — 헤더·하단 버튼은 고정, 본문만 스크롤(360px에서 `GitHub 열기`가 항상 보임)
+- 🔤 **Pretendard + 선명한 대비** — 본문 `#111827`/보조 `#4B5563`(다크 `#F3F4F6`/`#9CA3AF`), 카드에 32px GitHub 아바타와 `git clone` 복사 버튼
 
 <p>
   <img src="docs/screenshots/home-1280.png" alt="데스크톱 탐색 화면" width="800">
