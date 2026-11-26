@@ -35,6 +35,8 @@ const state = {
   filterOpen: false,
   // 지금까지 펼친 카드 수. 조건이 바뀌면 PAGE_SIZE로 돌아간다.
   visible: PAGE_SIZE,
+  // 화면에 실제로 그려 둔 카드 수(더 보기는 이 뒤에 이어 붙인다).
+  rendered: 0,
   signature: '',
 };
 
@@ -235,14 +237,56 @@ function cardBadges(repo) {
     .join('');
 }
 
-/** 32px GitHub 아바타. 이미지가 실패하면 아래 이니셜 타일이 그대로 보인다. */
+/** 32px GitHub 아바타. 이미지가 실패하면 아래 이니셜 타일이 그대로 보인다.
+ *  1,300개 카드가 한 번에 아바타를 받아 오면 브라우저가 버티지 못한다(ERR_INSUFFICIENT_RESOURCES).
+ *  그래서 src는 화면 근처에 왔을 때만 붙이고, 멀어지면 떼어 낸다. */
 function logoTile(repo, extraClass = '') {
   const initials = String(repo.owner || repo.vendor || repo.name || '?').slice(0, 1);
   const src = `https://github.com/${encodeURIComponent(repo.owner || '')}.png?size=64`;
   return `<span class="card-logo ${extraClass}" aria-hidden="true">
       <span class="card-logo-init">${escapeHtml(initials)}</span>
-      <img src="${src}" alt="" width="32" height="32" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()" />
+      <img data-src="${src}" alt="" width="32" height="32" decoding="async" referrerpolicy="no-referrer" hidden onerror="this.remove()" />
     </span>`;
+}
+
+/** 아바타 지연 로딩: 보이는 카드만 이미지를 받는다. */
+let logoObserver = null;
+const logoSeen = new WeakSet();
+
+function hydrateLogos(root = document) {
+  const images = root.querySelectorAll('.card-logo img[data-src]');
+  if (!images.length) return;
+  if (typeof IntersectionObserver !== 'function') {
+    for (const image of images) {
+      image.src = image.dataset.src;
+      image.hidden = false;
+    }
+    return;
+  }
+  if (!logoObserver) {
+    logoObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const image = entry.target;
+          if (entry.isIntersecting) {
+            if (!image.getAttribute('src') && image.dataset.src) {
+              image.src = image.dataset.src;
+              image.hidden = false;
+            }
+          } else if (image.getAttribute('src')) {
+            image.hidden = true;
+            image.removeAttribute('src');
+          }
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+  }
+  for (const image of images) {
+    if (logoSeen.has(image)) continue;
+    logoSeen.add(image);
+    logoObserver.observe(image);
+  }
 }
 
 function cardHtml(repo) {
@@ -280,12 +324,13 @@ function cardHtml(repo) {
     </article>`;
 }
 
-function render() {
+function render({ append = false } = {}) {
   // 조건이 바뀌면 처음 24개부터 다시 보여 준다(정렬 포함).
   const signature = JSON.stringify([state.query, state.category, [...state.filters].sort(), state.sort]);
   if (signature !== state.signature) {
     state.signature = signature;
     state.visible = PAGE_SIZE;
+    append = false;
   }
 
   const visible = selectRepos(state.repos, {
@@ -296,10 +341,17 @@ function render() {
   });
 
   // 24개씩만 그리고, 남은 카드는 '더 보기' 버튼으로 이어 붙인다.
-  const shown = visible.slice(0, pageCount(visible.length, state.visible));
+  const shown = pageCount(visible.length, state.visible);
   const remaining = remainingCount(visible.length, state.visible);
 
-  el.grid.innerHTML = shown.map((repo) => cardHtml(repo)).join('');
+  if (append && shown > state.rendered) {
+    // '더 보기'는 이미 그린 카드를 다시 만들지 않고 새 카드만 뒤에 붙인다.
+    el.grid.insertAdjacentHTML('beforeend', visible.slice(state.rendered, shown).map((repo) => cardHtml(repo)).join(''));
+  } else {
+    el.grid.innerHTML = visible.slice(0, shown).map((repo) => cardHtml(repo)).join('');
+  }
+  state.rendered = shown;
+  hydrateLogos(el.grid);
   el.grid.hidden = visible.length === 0;
   el.empty.hidden = visible.length !== 0;
 
@@ -311,7 +363,7 @@ function render() {
     el.more.textContent = '';
   }
 
-  const parts = [`<b>${shown.length}</b>개 표시`];
+  const parts = [`<b>${shown}</b>개 표시`];
   if (visible.length !== state.repos.length) parts.push(`조건에 맞는 ${visible.length}개`);
   else parts.push(`전체 ${state.repos.length}개`);
   el.count.innerHTML = parts.join(' · ');
@@ -426,6 +478,7 @@ function openDetail(repoName) {
   if (!repo) return;
   el.detailInner.innerHTML = detailHtml(repo);
   el.detail.showModal();
+  hydrateLogos(el.detailInner);
   el.detailInner.querySelector('[data-close]')?.focus();
 }
 
@@ -474,6 +527,11 @@ async function copyCommand(button) {
 function bindEvents() {
   el.q.addEventListener('input', () => {
     state.query = el.q.value.trim();
+    // 검색어를 넣으면 관련도 순으로, 검색어를 지우면 스타 많은 순으로 돌아간다.
+    // 사용자가 직접 고른 정렬(이름·업데이트)은 건드리지 않는다.
+    if (state.query && state.sort === 'stars') state.sort = 'relevance';
+    else if (!state.query && state.sort === 'relevance') state.sort = 'stars';
+    el.sort.value = state.sort;
     render();
   });
 
@@ -510,6 +568,7 @@ function bindEvents() {
     state.category = 'all';
     state.filters = new Set();
     state.sort = 'stars';
+    el.sort.value = state.sort;
     render();
     el.q.focus();
   };
@@ -525,10 +584,10 @@ function bindEvents() {
     if (card) openDetail(card.dataset.repo);
   });
 
-  // '더 보기': 한 번에 PAGE_SIZE씩 추가로 그린다.
+  // '더 보기': 한 번에 PAGE_SIZE씩 추가로 그린다(이미 그린 카드는 그대로 둔다).
   el.more.addEventListener('click', () => {
     state.visible = nextVisibleCount(state.visible);
-    render();
+    render({ append: true });
     el.more.focus({ preventScroll: true });
   });
 
@@ -575,6 +634,8 @@ async function init() {
   applyTheme(currentTheme(), { persist: false });
   el.reportLink.href = issueUrl('[제보] 새 저장소 추가');
   readHash();
+  // 공유 링크에 검색어만 있고 정렬이 없으면 관련도 순으로 보여 준다.
+  if (state.query && state.sort === 'stars') state.sort = 'relevance';
   // 공유된 링크에 필터가 걸려 있으면 왜 결과가 좁은지 보이도록 패널을 펼친다.
   setFilterOpen(state.filters.size > 0);
   buildTabs();

@@ -49,6 +49,8 @@ async function main() {
     previousRepos,
     client,
     now: new Date(),
+    // Actions 러너에서 1,300여 개 저장소를 3회씩 순차 조회하면 오래 걸린다. 조금만 병렬로.
+    concurrency: 4,
   });
 
   assertCatalog(catalog);

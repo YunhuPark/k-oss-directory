@@ -192,13 +192,14 @@ export function buildEntry({ curated, repo, readmeText, rootNames, now }) {
  * 전체 카탈로그 생성.
  * client: { getRepo(fullName), getReadme(fullName), getRootNames(fullName) }
  * 한 저장소가 실패해도 나머지를 만들고, 이전 카탈로그 값이 있으면 그 값을 유지한다.
+ * concurrency: 동시에 조회할 저장소 수(기본 4). 결과 순서는 입력 순서와 같다.
  */
-export async function buildCatalog({ curatedList, client, now = new Date(), previousRepos = [] }) {
+export async function buildCatalog({ curatedList, client, now = new Date(), previousRepos = [], concurrency = 4 }) {
   const previous = new Map(previousRepos.map((entry) => [entry.repo, entry]));
-  const entries = [];
+  const entries = new Array(curatedList.length);
   const errors = [];
 
-  for (const curated of curatedList) {
+  async function buildOne(curated) {
     try {
       const repo = await client.getRepo(curated.repo);
       if (!repo) {
@@ -215,14 +216,25 @@ export async function buildCatalog({ curatedList, client, now = new Date(), prev
         // README/루트 목록 실패는 치명적이지 않다. 큐레이션 값으로 계속 간다.
         errors.push({ repo: curated.repo, stage: 'readme', reason: String(readmeError.message ?? readmeError) });
       }
-      entries.push(buildEntry({ curated, repo, readmeText, rootNames, now }));
+      return buildEntry({ curated, repo, readmeText, rootNames, now });
     } catch (error) {
       const reason = String(error.message ?? error);
       errors.push({ repo: curated.repo, stage: 'repo', reason });
-      const previousEntry = previous.get(curated.repo);
-      entries.push(previousEntry ?? buildStaleEntry(curated, now));
+      return previous.get(curated.repo) ?? buildStaleEntry(curated, now);
     }
   }
+
+  let next = 0;
+  const size = Math.max(1, Math.min(Number(concurrency) || 1, curatedList.length || 1));
+  await Promise.all(
+    Array.from({ length: size }, async () => {
+      while (next < curatedList.length) {
+        const index = next;
+        next += 1;
+        entries[index] = await buildOne(curatedList[index]);
+      }
+    }),
+  );
 
   if (curatedList.length > 0 && errors.filter((e) => e.stage === 'repo').length === curatedList.length) {
     throw new Error('모든 저장소 조회에 실패했습니다. 기존 카탈로그를 덮어쓰지 않습니다.');

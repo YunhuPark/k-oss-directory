@@ -755,6 +755,11 @@ a:hover {
   background: var(--surface);
 }
 
+/* 화면 밖으로 나간 아바타는 DOM만 남기고 이미지를 놓아둔다(app.js hydrateLogos) */
+.card-logo img[hidden] {
+  display: none;
+}
+
 .card-logo-init {
   line-height: 1;
 }

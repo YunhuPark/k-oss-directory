@@ -45,7 +45,7 @@ async function screenshot(page, file, viewport, options = {}) {
   }
 }
 
-/** 전체 페이지 캡처: 카드 93개로 문서가 20,000px를 넘어 배율 2에서는 렌더러가 죽는다. */
+/** 전체 페이지 캡처: 카드가 많아 문서가 20,000px를 넘으면 배율 2에서는 렌더러가 죽는다. */
 async function fullScreenshot(page, file, viewport) {
   await page.setViewport({ ...viewport, deviceScaleFactor: 1 });
   await screenshot(page, file, { ...viewport, deviceScaleFactor: 1 }, { fullPage: true, captureBeyondViewport: false });
@@ -409,7 +409,8 @@ async function main() {
 
       // 끝까지 누르면 전체가 그려지고 버튼이 사라진다
       let guard = 0;
-      while (guard++ < 40) {
+      // 1,300여 개면 클릭 56번. 여유를 두고 넉넉히 돌린다.
+      while (guard++ < Math.ceil(total / PAGE_SIZE) + 10) {
         const hidden = await page.$eval('#load-more', (node) => node.hidden);
         if (hidden) break;
         await page.click('#load-more');
@@ -604,11 +605,39 @@ async function main() {
         `${searchHits.length}개 · ${searchHits.join(', ')}`,
       );
       await screenshot(page, path.join(OUT_DIR, `search-${viewport.name}.png`), viewport);
+
+      // 유의어 검색: '화면' 하나로 UI·프론트엔드 항목이 나오고, 정렬은 관련도 순이 된다
+      const screenSorted = await page.$eval('#sort', (node) => node.value);
+      check(`[${viewport.name}] 검색하면 정렬이 관련도 순`, screenSorted === 'relevance', screenSorted);
+      const screenHits = expectedNames(repos, { query: '화면' });
       await page.evaluate(() => {
         const input = document.getElementById('q');
         input.value = '';
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
+      await page.click('#q');
+      await page.type('#q', '화면', { delay: 20 });
+      await page.waitForFunction(
+        (expected) => document.querySelectorAll('.card').length === expected,
+        {},
+        firstPageCount(screenHits.length),
+      );
+      const screenTitles = await page.$$eval('.card-title', (titles) => titles.map((t) => t.textContent.trim()));
+      check(
+        `[${viewport.name}] 유의어 검색 "화면" → UI·프론트엔드 ${screenHits.length}건 중 관련도 순`,
+        screenHits.length > 20 &&
+          screenTitles.join(',') === firstPage(screenHits).join(',') &&
+          screenTitles.includes('storybook'),
+        `${screenTitles.length}개 · ${screenTitles.slice(0, 6).join(', ')}`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `search-synonym-${viewport.name}.png`), viewport);
+      await page.evaluate(() => {
+        const input = document.getElementById('q');
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      const sortAfterClear = await page.$eval('#sort', (node) => node.value);
+      check(`[${viewport.name}] 검색을 지우면 스타순으로 복귀`, sortAfterClear === 'stars', sortAfterClear);
       await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
 
       // 토큰 검색: 'k-ui-ux' → 'k-style-ui-ux'가 바로 나온다
