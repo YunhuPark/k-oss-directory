@@ -6,3 +6,6 @@ downloads/
 
 # wrangler 배포 캐시
 .wrangler/
+
+# 로컬 조사 산출물(별표 저장소 전수 조사 캐시)
+.work/

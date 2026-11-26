@@ -53,6 +53,37 @@ test('isCommercialLicense: 허용 목록만 true', () => {
   assert.equal(isCommercialLicense(undefined), false);
 });
 
+test('isCommercialLicense: OFL-1.1 폰트 라이선스는 상업 무료', () => {
+  // Pretendard·D2 Coding처럼 앱·웹에 임베드해 배포해도 되는 글꼴 라이선스
+  assert.equal(isCommercialLicense('OFL-1.1'), true);
+  assert.equal(isCommercialLicense('CC-BY-4.0'), false);
+  assert.equal(isCommercialLicense('CC-BY-SA-4.0'), false);
+});
+
+test('buildEntry: GitHub이 라이선스를 못 읽으면 직접 확인한 OFL-1.1을 쓴다', () => {
+  const entry = buildEntry({
+    curated: { ...curated, repo: 'orioncactus/pretendard', category: 'frontend', license: 'OFL-1.1' },
+    repo: { ...repoJson, name: 'pretendard', license: { spdx_id: 'NOASSERTION', name: 'Other' } },
+    readmeText: null,
+    rootNames: ['LICENSE'],
+    now,
+  });
+
+  assert.equal(entry.license, 'OFL-1.1');
+  assert.equal(entry.licenseSource, 'curated');
+  assert.equal(entry.commercialUse, true);
+});
+
+test('buildEntry: 라이선스 출처를 github·none으로 남긴다', () => {
+  const fromApi = buildEntry({ curated, repo: repoJson, readmeText: '', rootNames: [], now });
+  assert.equal(fromApi.licenseSource, 'github');
+
+  const none = buildEntry({ curated, repo: { ...repoJson, license: null }, readmeText: '', rootNames: [], now });
+  assert.equal(none.license, null);
+  assert.equal(none.licenseSource, 'none');
+  assert.equal(none.commercialUse, false);
+});
+
 test('countHangul: 한글 글자만 센다', () => {
   assert.equal(countHangul('카카오 한글 Analyzer'), 5);
   assert.equal(countHangul('no korean here'), 0);
@@ -163,6 +194,15 @@ test('buildStaleEntry: 조회 실패해도 큐레이션 정보는 남는다', ()
   assert.equal(entry.stale, true);
   assert.equal(entry.summary, curated.summary);
   assert.equal(entry.category, 'frontend');
+  assert.equal(entry.license, null);
+  assert.equal(entry.licenseSource, 'none');
+});
+
+test('buildStaleEntry: 직접 확인한 라이선스는 실패해도 유지된다', () => {
+  const entry = buildStaleEntry({ ...curated, license: 'OFL-1.1' }, now);
+  assert.equal(entry.license, 'OFL-1.1');
+  assert.equal(entry.licenseSource, 'curated');
+  assert.equal(entry.commercialUse, true);
 });
 
 function fakeClient(responses) {

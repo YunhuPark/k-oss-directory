@@ -12,7 +12,11 @@ export const CATEGORIES = {
   learn: '학습·자료',
 };
 
-/** 회사 서비스에 그대로 써도 된다고 판단하는 SPDX 라이선스 */
+/**
+ * 회사 서비스에 그대로 써도 된다고 판단하는 SPDX 라이선스.
+ * OFL-1.1은 글꼴을 앱·웹에 임베드해 배포해도 되는 라이선스라 폰트 저장소에 한해 허용한다
+ * (OFL은 폰트 자체를 유료로 재판매하는 것만 막는다).
+ */
 export const COMMERCIAL_LICENSES = new Set([
   'MIT',
   'Apache-2.0',
@@ -23,6 +27,7 @@ export const COMMERCIAL_LICENSES = new Set([
   'CC0-1.0',
   'Unlicense',
   '0BSD',
+  'OFL-1.1',
 ]);
 
 /** "최근"의 기준: 3개월 */
@@ -117,9 +122,10 @@ export function buildStaleEntry(curated, now) {
     forks: null,
     openIssues: null,
     language: null,
-    license: null,
+    license: curated.license ?? null,
     licenseName: null,
-    commercialUse: false,
+    licenseSource: curated.license ? 'curated' : 'none',
+    commercialUse: isCommercialLicense(curated.license),
     homepage: null,
     pushedAt: null,
     updatedAt: null,
@@ -143,6 +149,10 @@ export function buildEntry({ curated, repo, readmeText, rootNames, now }) {
   const topics = Array.isArray(repo.topics) ? repo.topics : [];
   const korean = detectKoreanDocs({ curated: curated.koreanDocs, readmeText, rootNames });
   const docker = detectDocker({ curated: curated.docker, rootNames, topics });
+  // GitHub이 라이선스를 잘못 읽는 저장소(예: OFL 전문에 저작권 고지가 여러 개 붙은 폰트)는
+  // 사람이 LICENSE 원문을 확인한 값(curated.license)을 쓴다. 그 사실을 licenseSource에 남긴다.
+  const apiLicense = repo.license?.spdx_id ?? null;
+  const license = curated.license ?? apiLicense;
 
   return {
     repo: curated.repo,
@@ -157,9 +167,10 @@ export function buildEntry({ curated, repo, readmeText, rootNames, now }) {
     forks: Number.isFinite(repo.forks_count) ? repo.forks_count : null,
     openIssues: Number.isFinite(repo.open_issues_count) ? repo.open_issues_count : null,
     language: repo.language ?? null,
-    license: repo.license?.spdx_id ?? null,
-    licenseName: repo.license?.name ?? null,
-    commercialUse: isCommercialLicense(repo.license?.spdx_id),
+    license,
+    licenseName: curated.license ? curated.licenseName ?? null : repo.license?.name ?? null,
+    licenseSource: curated.license ? 'curated' : apiLicense ? 'github' : 'none',
+    commercialUse: isCommercialLicense(license),
     homepage: repo.homepage && repo.homepage.trim() ? repo.homepage.trim() : null,
     pushedAt: repo.pushed_at ?? null,
     updatedAt: repo.updated_at ?? null,
