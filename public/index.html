@@ -115,9 +115,23 @@
               spellcheck="false"
             />
           </div>
-          <div class="sort">
-            <label class="sr-only" for="sort">정렬</label>
-            <select id="sort"></select>
+          <div class="sort" id="sort-field">
+            <button
+              class="sort-trigger"
+              id="sort"
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="sort-menu"
+              aria-label="정렬: 스타 많은 순"
+              data-value="stars"
+            >
+              <span class="sort-value" id="sort-value">스타 많은 순</span>
+              <svg class="sort-caret" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+                <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+            </button>
+            <div class="sort-menu" id="sort-menu" role="listbox" aria-label="정렬 기준" hidden></div>
           </div>
           <button
             class="filter-toggle"

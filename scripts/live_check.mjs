@@ -119,6 +119,77 @@ try {
     );
     check(`[${viewport.name}] 푸터 수록 현황`, stats.includes(String(catalog.count)), stats);
 
+    // 칩 비율: 고정 min-width를 풀고 글자 길이에 맞춘 자연 폭·34~36px 높이·13.5px 글자
+    const tabBalance = await page.evaluate(() => {
+      const measure = (node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const box = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          label: node.textContent.trim(),
+          w: Math.round(box.width * 10) / 10,
+          t: Math.round(range.getBoundingClientRect().width * 10) / 10,
+          h: Math.round(box.height * 10) / 10,
+          pad: parseFloat(style.paddingLeft),
+          font: parseFloat(style.fontSize),
+          min: style.minWidth,
+        };
+      };
+      return [...document.querySelectorAll('#tabs .tab')].map(measure);
+    });
+    const tabFits = tabBalance.every(
+      (tab) =>
+        tab.font >= 13.4 &&
+        tab.h >= 33 &&
+        tab.h <= 37 &&
+        tab.w >= tab.t + tab.pad * 2 - 1 &&
+        tab.w <= tab.t + tab.pad * 2 + 3 &&
+        (!/^[\d.]+px$/.test(tab.min) || parseFloat(tab.min) === 0),
+    );
+    check(
+      `[${viewport.name}] 카테고리 칩 글자 대비 박스 비율`,
+      tabBalance.length === 6 && tabFits,
+      `${tabBalance.map((tab) => `${tab.label} ${tab.w}/${tab.t}`).join(' · ')} · 높이 ${tabBalance[0]?.h} · 글자 ${tabBalance[0]?.font}`,
+    );
+
+    await page.click('#filter-toggle');
+    await page.waitForFunction(() => !document.getElementById('filter-panel').hidden);
+    const chipBalance = await page.evaluate(() => {
+      const measure = (node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const box = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          label: node.textContent.trim(),
+          w: Math.round(box.width * 10) / 10,
+          t: Math.round(range.getBoundingClientRect().width * 10) / 10,
+          h: Math.round(box.height * 10) / 10,
+          pad: parseFloat(style.paddingLeft),
+          font: parseFloat(style.fontSize),
+        };
+      };
+      const track = getComputedStyle(document.getElementById('chips'));
+      return { chips: [...document.querySelectorAll('#chips .chip')].map(measure), display: track.display, wrap: track.flexWrap };
+    });
+    const chipFits = chipBalance.chips.every(
+      (chip) =>
+        chip.font >= 13.4 &&
+        chip.h >= 33 &&
+        chip.h <= 37 &&
+        chip.w >= chip.t + chip.pad * 2 &&
+        chip.w <= chip.t + chip.pad * 2 + 18,
+    );
+    check(
+      `[${viewport.name}] 필터 칩 자연 폭·높이 통일`,
+      chipBalance.chips.length === 5 && chipBalance.display === 'flex' && chipBalance.wrap === 'wrap' && chipFits,
+      `${chipBalance.chips.map((chip) => `${chip.label} ${chip.w}/${chip.t}`).join(' · ')} · 높이 ${chipBalance.chips[0]?.h}`,
+    );
+    await page.click('#filter-toggle');
+    await page.waitForFunction(() => document.getElementById('filter-panel').hidden);
+
+
     await page.click('#load-more');
     await page.waitForFunction(() => document.querySelectorAll('.card').length === 48);
     const after = await page.$eval('#load-more', (node) => node.textContent.trim());
@@ -129,7 +200,7 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('.card').length === 24);
     const screenTitles = await page.$$eval('.card-title', (nodes) => nodes.map((node) => node.textContent.trim()));
     const screenCount = await page.$eval('#count b', (node) => node.textContent);
-    const sortValue = await page.$eval('#sort', (node) => node.value);
+    const sortValue = await page.$eval('#sort', (node) => node.dataset.value);
     check(
       `[${viewport.name}] 유의어 검색 "화면" → ${screenCount}개 표시`,
       screenTitles.includes('storybook') && screenTitles.includes('k-style-ui-ux') && sortValue === 'relevance',
@@ -196,10 +267,111 @@ try {
       mcpHashState.count,
     );
 
-    // 첫 화면으로 돌아와 캡처
+    // 첫 화면으로 돌아와 정렬·칩 상태를 확인하고 캡처
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.card');
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    // 정렬: 네이티브 select 대신 커스텀 드롭다운이 라이브에도 실려 있는지
+    const starsTitle = await page.$eval('.card-title', (node) => node.textContent.trim());
+    const sortClosed = await page.evaluate(() => ({
+      nativeSelects: document.querySelectorAll('select').length,
+      tag: document.getElementById('sort').tagName,
+      value: document.getElementById('sort').dataset.value,
+      label: document.getElementById('sort-value').textContent.trim(),
+      hidden: document.getElementById('sort-menu').hidden,
+      expanded: document.getElementById('sort').getAttribute('aria-expanded'),
+    }));
+    await page.click('#sort');
+    await page.waitForFunction(() => !document.getElementById('sort-menu').hidden);
+    await new Promise((resolve) => setTimeout(resolve, 320));
+    const sortMenu = await page.evaluate(() => {
+      const menu = document.getElementById('sort-menu');
+      const box = menu.getBoundingClientRect();
+      const options = [...menu.querySelectorAll('.sort-option')];
+      return {
+        role: menu.getAttribute('role'),
+        expanded: document.getElementById('sort').getAttribute('aria-expanded'),
+        options: options.length,
+        roleOk: options.every((option) => option.getAttribute('role') === 'option'),
+        checked: options
+          .filter((option) => getComputedStyle(option.querySelector('.sort-check')).visibility === 'visible')
+          .map((option) => option.textContent.trim()),
+        selected: options
+          .filter((option) => option.getAttribute('aria-selected') === 'true')
+          .map((option) => option.textContent.trim()),
+        radius: parseFloat(getComputedStyle(menu).borderTopLeftRadius),
+        bg: getComputedStyle(menu).backgroundColor,
+        pageBg: getComputedStyle(document.body).backgroundColor,
+        font: parseFloat(getComputedStyle(options[0]).fontSize),
+        inside: box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight,
+        above: Boolean(
+          document
+            .elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+            ?.closest('#sort-menu'),
+        ),
+      };
+    });
+    check(
+      `[${viewport.name}] 정렬 커스텀 드롭다운(select 없음·listbox 4개)`,
+      sortClosed.nativeSelects === 0 &&
+        sortClosed.tag === 'BUTTON' &&
+        sortClosed.value === 'stars' &&
+        sortClosed.label === '스타 많은 순' &&
+        sortClosed.hidden &&
+        sortClosed.expanded === 'false' &&
+        sortMenu.role === 'listbox' &&
+        sortMenu.expanded === 'true' &&
+        sortMenu.options === 4 &&
+        sortMenu.roleOk &&
+        sortMenu.checked.length === 1 &&
+        sortMenu.selected[0] === '스타 많은 순' &&
+        sortMenu.radius === 12 &&
+        sortMenu.bg !== sortMenu.pageBg &&
+        sortMenu.font >= 13.5 &&
+        sortMenu.inside &&
+        sortMenu.above,
+      `select ${sortClosed.nativeSelects}개 · ${sortMenu.options}개 항목 · ✓ ${sortMenu.checked.join(',')} · radius ${sortMenu.radius} · ${sortMenu.font}px · 화면 안 ${sortMenu.inside} · 카드 위 ${sortMenu.above}`,
+    );
+    await page.screenshot({ path: `${OUT}/${TAG}-sort-open${viewport.name === '1280' ? '' : `-${viewport.name}`}.png` });
+
+    // 항목을 고르면 정렬·해시가 바뀌고 메뉴가 닫힌다
+    await page.click('.sort-option[data-sort="updated"]');
+    await page.waitForFunction(() => document.getElementById('sort').getAttribute('aria-expanded') === 'false');
+    const sortPicked = await page.evaluate(() => ({
+      value: document.getElementById('sort').dataset.value,
+      label: document.getElementById('sort-value').textContent.trim(),
+      hash: location.hash,
+      hidden: document.getElementById('sort-menu').hidden,
+      first: document.querySelector('.card-title')?.textContent.trim(),
+    }));
+    check(
+      `[${viewport.name}] 정렬 선택 → 최신 업데이트 순 반영`,
+      sortPicked.value === 'updated' &&
+        sortPicked.label === '최신 업데이트 순' &&
+        sortPicked.hash.includes('sort=updated') &&
+        sortPicked.hidden &&
+        sortPicked.first !== starsTitle,
+      `"${sortPicked.label}" · ${sortPicked.hash} · 첫 카드 ${starsTitle} → ${sortPicked.first}`,
+    );
+    await page.click('#sort');
+    await page.waitForFunction(() => !document.getElementById('sort-menu').hidden);
+    await page.click('.sort-option[data-sort="stars"]');
+    await page.waitForFunction(
+      (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,
+      {},
+      starsTitle,
+    );
+    const sortRestored = await page.evaluate(() => ({
+      value: document.getElementById('sort').dataset.value,
+      hash: location.hash,
+    }));
+    check(
+      `[${viewport.name}] 스타순으로 되돌림`,
+      sortRestored.value === 'stars' && !sortRestored.hash.includes('sort='),
+      `${sortRestored.value} · ${sortRestored.hash || '(해시 없음)'}`,
+    );
+
     await page.screenshot({ path: `${OUT}/${TAG}-${viewport.name}.png` });
 
     const overflow = await page.evaluate(

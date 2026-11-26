@@ -33,6 +33,7 @@ const state = {
   category: 'all',
   filters: new Set(),
   sort: 'stars',
+  sortOpen: false,
   filterOpen: false,
   // 지금까지 펼친 카드 수. 조건이 바뀌면 PAGE_SIZE로 돌아간다.
   visible: PAGE_SIZE,
@@ -44,6 +45,8 @@ const state = {
 const el = {
   q: document.getElementById('q'),
   sort: document.getElementById('sort'),
+  sortValue: document.getElementById('sort-value'),
+  sortMenu: document.getElementById('sort-menu'),
   tabs: document.getElementById('tabs'),
   chips: document.getElementById('chips'),
   filterToggle: document.getElementById('filter-toggle'),
@@ -126,7 +129,7 @@ function writeHash() {
 
 function syncControls() {
   el.q.value = state.query;
-  el.sort.value = state.sort;
+  syncSortUI();
   for (const button of el.tabs.querySelectorAll('.tab')) {
     button.setAttribute('aria-pressed', String(button.dataset.category === state.category));
   }
@@ -158,6 +161,64 @@ function syncFilterBadge() {
   const label = count > 0 ? `세부 필터, ${count}개 선택됨` : '세부 필터 열기';
   el.filterToggle.setAttribute('aria-label', label);
   el.filterToggle.setAttribute('title', label);
+}
+
+/* ── 정렬 커스텀 드롭다운 ────────────────────────────
+   네이티브 <select> 대신 버튼 + listbox. 상태(state.sort)가 유일한 기준이고,
+   버튼 표시·메뉴의 aria-selected·✓ 를 한곳(syncSortUI)에서 맞춘다. */
+function sortLabel(key) {
+  return (SORTS.find((sort) => sort.key === key) ?? SORTS[0]).label;
+}
+
+function sortOptions() {
+  return [...el.sortMenu.querySelectorAll('.sort-option')];
+}
+
+function syncSortUI() {
+  const label = sortLabel(state.sort);
+  el.sortValue.textContent = label;
+  el.sort.dataset.value = state.sort;
+  el.sort.setAttribute('aria-label', `정렬: ${label}`);
+  for (const option of sortOptions()) {
+    option.setAttribute('aria-selected', String(option.dataset.sort === state.sort));
+  }
+}
+
+function buildSortMenu() {
+  el.sortMenu.innerHTML = SORTS.map(
+    (sort) => `<button class="sort-option" type="button" role="option" tabindex="-1" data-sort="${
+      sort.key
+    }" aria-selected="${sort.key === state.sort}">
+        <span>${escapeHtml(sort.label)}</span>
+        <svg class="sort-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.4 8.4l3 3 6.2-6.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>`,
+  ).join('');
+  syncSortUI();
+}
+
+/** 메뉴를 열고 닫는다. 열 때는 지금 선택된 항목, 닫을 때는 버튼으로 포커스를 돌린다. */
+function setSortOpen(open, { focus = true } = {}) {
+  const next = Boolean(open);
+  if (next === state.sortOpen) return;
+  state.sortOpen = next;
+  el.sortMenu.hidden = !next;
+  el.sort.setAttribute('aria-expanded', String(next));
+  if (next) {
+    if (focus) {
+      const selected =
+        el.sortMenu.querySelector('.sort-option[aria-selected="true"]') ?? sortOptions()[0];
+      selected?.focus();
+    }
+  } else if (focus && el.sortMenu.contains(document.activeElement)) {
+    el.sort.focus();
+  }
+}
+
+function chooseSort(key) {
+  if (!SORTS.some((sort) => sort.key === key)) return;
+  setSortOpen(false);
+  state.sort = key;
+  render();
 }
 
 /** 가로 스크롤이 남았는지에 따라 카테고리 칩 좌우 페이드를 켜고 끈다. */
@@ -197,10 +258,7 @@ function buildTabs() {
       }">${escapeHtml(filter.label)}</button>`,
   ).join('');
 
-  el.sort.innerHTML = SORTS.map(
-    (sort) => `<option value="${sort.key}">${escapeHtml(sort.label)}</option>`,
-  ).join('');
-  el.sort.value = state.sort;
+  buildSortMenu();
 }
 
 /** 배지: 판정 + 검증 표시(✓ 실측 · ? 직접 확인/참고) */
@@ -572,13 +630,65 @@ function bindEvents() {
     // 사용자가 직접 고른 정렬(이름·업데이트)은 건드리지 않는다.
     if (state.query && state.sort === 'stars') state.sort = 'relevance';
     else if (!state.query && state.sort === 'relevance') state.sort = 'stars';
-    el.sort.value = state.sort;
     render();
   });
 
-  el.sort.addEventListener('change', () => {
-    state.sort = el.sort.value;
-    render();
+  // 정렬: 버튼으로 열고, 항목을 고르면 상태·해시·목록이 함께 바뀐다.
+  el.sort.addEventListener('click', () => {
+    setSortOpen(!state.sortOpen);
+  });
+
+  el.sort.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    if (!state.sortOpen) {
+      setSortOpen(true);
+      return;
+    }
+    const options = sortOptions();
+    const index = options.indexOf(document.activeElement.closest('.sort-option'));
+    const next = event.key === 'ArrowDown' ? index + 1 : index - 1;
+    options[Math.min(Math.max(next, 0), options.length - 1)]?.focus();
+  });
+
+  el.sortMenu.addEventListener('click', (event) => {
+    const option = event.target.closest('.sort-option');
+    if (option) chooseSort(option.dataset.sort);
+  });
+
+  el.sortMenu.addEventListener('keydown', (event) => {
+    const options = sortOptions();
+    const index = options.indexOf(document.activeElement.closest('.sort-option'));
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      options[Math.min(index + 1, options.length - 1)]?.focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      options[Math.max(index - 1, 0)]?.focus();
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      options[0]?.focus();
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      options[options.length - 1]?.focus();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setSortOpen(false);
+    } else if (event.key === 'Tab') {
+      // 메뉴 밖으로 나가면 닫는다(포커스 이동은 그대로 둔다).
+      setSortOpen(false, { focus: false });
+    }
+  });
+
+  // 바깥 클릭으로 닫기
+  document.addEventListener('click', (event) => {
+    if (!state.sortOpen) return;
+    if (event.target.closest('.sort')) return;
+    setSortOpen(false, { focus: false });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.sortOpen) setSortOpen(false);
   });
 
   el.tabs.addEventListener('click', (event) => {
@@ -609,7 +719,6 @@ function bindEvents() {
     state.category = 'all';
     state.filters = new Set();
     state.sort = 'stars';
-    el.sort.value = state.sort;
     render();
     el.q.focus();
   };

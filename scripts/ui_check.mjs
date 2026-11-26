@@ -87,6 +87,23 @@ async function closeFilters(page) {
   }
 }
 
+/** 정렬은 커스텀 드롭다운이다: 버튼을 눌러 열고, 항목을 눌러 고른다. */
+const sortValue = (page) => page.$eval('#sort', (node) => node.dataset.value);
+
+async function openSort(page) {
+  const expanded = await page.$eval('#sort', (node) => node.getAttribute('aria-expanded'));
+  if (expanded !== 'true') {
+    await page.click('#sort');
+    await page.waitForFunction(() => !document.getElementById('sort-menu').hidden);
+  }
+}
+
+async function chooseSort(page, key) {
+  await openSort(page);
+  await page.click(`.sort-option[data-sort="${key}"]`);
+  await page.waitForFunction(() => document.getElementById('sort').getAttribute('aria-expanded') === 'false');
+}
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   const catalog = JSON.parse(await readFile(path.join(ROOT, 'public/data/catalog.json'), 'utf8'));
@@ -101,6 +118,7 @@ async function main() {
   const chartHits = expectedNames(repos, { query: '차트' });
   const updatedFirst = expectedNames(repos, { sort: 'updated' })[0];
   const starsFirst = expectedNames(repos, { sort: 'stars' })[0];
+  const nameFirst = expectedNames(repos, { sort: 'name' })[0];
   const frontendNames = expectedNames(repos, { category: 'frontend' });
 
   const server = createServer();
@@ -451,6 +469,191 @@ async function main() {
         `라운딩 ${sizeMatch.input.radius}/${sizeMatch.select.radius}/${sizeMatch.toggle.radius} · 정렬·필터 윗변 ${sizeMatch.select.top.toFixed(1)}/${sizeMatch.toggle.top.toFixed(1)}`,
       );
 
+      // 정렬은 네이티브 <select>가 아니라 사이트 토큰으로 만든 커스텀 드롭다운이다.
+      const sortClosed = await page.evaluate(() => {
+        const trigger = document.getElementById('sort');
+        const menu = document.getElementById('sort-menu');
+        const style = getComputedStyle(trigger);
+        return {
+          tag: trigger.tagName,
+          nativeSelects: document.querySelectorAll('select').length,
+          expanded: trigger.getAttribute('aria-expanded'),
+          haspopup: trigger.getAttribute('aria-haspopup'),
+          controls: trigger.getAttribute('aria-controls'),
+          label: document.getElementById('sort-value')?.textContent.trim(),
+          ariaLabel: trigger.getAttribute('aria-label'),
+          value: trigger.dataset.value,
+          menuHidden: menu.hidden,
+          menuHeight: Math.round(menu.getBoundingClientRect().height),
+          radius: parseFloat(style.borderTopLeftRadius),
+          font: parseFloat(style.fontSize),
+        };
+      });
+      check(
+        `[${viewport.name}] 정렬은 커스텀 드롭다운(네이티브 select 없음)`,
+        sortClosed.tag === 'BUTTON' &&
+          sortClosed.nativeSelects === 0 &&
+          sortClosed.expanded === 'false' &&
+          sortClosed.haspopup === 'listbox' &&
+          sortClosed.controls === 'sort-menu' &&
+          sortClosed.label === '스타 많은 순' &&
+          sortClosed.ariaLabel === '정렬: 스타 많은 순' &&
+          sortClosed.value === 'stars' &&
+          sortClosed.menuHidden &&
+          sortClosed.menuHeight === 0 &&
+          sortClosed.radius === 12 &&
+          sortClosed.font >= 13.5,
+        `${sortClosed.tag} · select ${sortClosed.nativeSelects}개 · aria-expanded ${sortClosed.expanded} · "${sortClosed.label}" · 메뉴 ${sortClosed.menuHidden ? '닫힘' : '열림'} · radius ${sortClosed.radius} · ${sortClosed.font}px`,
+      );
+
+      await openSort(page);
+      await settle(page, 240);
+      const sortMenu = await page.evaluate(() => {
+        const trigger = document.getElementById('sort');
+        const menu = document.getElementById('sort-menu');
+        const box = menu.getBoundingClientRect();
+        const triggerBox = trigger.getBoundingClientRect();
+        const options = [...menu.querySelectorAll('.sort-option')];
+        const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return {
+          expanded: trigger.getAttribute('aria-expanded'),
+          hidden: menu.hidden,
+          role: menu.getAttribute('role'),
+          radius: parseFloat(getComputedStyle(menu).borderTopLeftRadius),
+          background: getComputedStyle(menu).backgroundColor,
+          pageBackground: getComputedStyle(document.body).backgroundColor,
+          box: { top: Math.round(box.top), left: Math.round(box.left), right: Math.round(box.right), bottom: Math.round(box.bottom) },
+          triggerBox: { top: Math.round(triggerBox.top), bottom: Math.round(triggerBox.bottom), right: Math.round(triggerBox.right) },
+          options: options.map((option) => ({
+            text: option.textContent.trim(),
+            role: option.getAttribute('role'),
+            selected: option.getAttribute('aria-selected'),
+            check: getComputedStyle(option.querySelector('.sort-check')).visibility,
+            height: Math.round(option.getBoundingClientRect().height),
+            font: parseFloat(getComputedStyle(option).fontSize),
+          })),
+          focusedText: document.activeElement?.closest('.sort-option')?.textContent.trim() ?? '',
+          aboveCards: Boolean(hit?.closest('#sort-menu')),
+          selectedBackground: selected[0] ? getComputedStyle(selected[0]).backgroundColor : '',
+          plainBackground: options.find((option) => option.getAttribute('aria-selected') === 'false')
+            ? getComputedStyle(options.find((option) => option.getAttribute('aria-selected') === 'false')).backgroundColor
+            : '',
+        };
+      });
+      check(
+        `[${viewport.name}] 정렬 메뉴 열림 — listbox 4개 항목·선택 표시`,
+        !sortMenu.hidden &&
+          sortMenu.expanded === 'true' &&
+          sortMenu.role === 'listbox' &&
+          sortMenu.options.length === 4 &&
+          sortMenu.options.every(
+            (option) =>
+              option.role === 'option' &&
+              option.height >= 32 &&
+              option.font >= 13.5 &&
+              ['true', 'false'].includes(option.selected),
+          ) &&
+          sortMenu.options.filter((option) => option.selected === 'true').length === 1 &&
+          sortMenu.options.find((option) => option.selected === 'true').check === 'visible' &&
+          sortMenu.options.filter((option) => option.selected === 'false').every((option) => option.check === 'hidden'),
+        sortMenu.options.map((option) => `${option.text}(${option.selected === 'true' ? '✓' : ''}${option.check})`).join(' / '),
+      );
+      check(
+        `[${viewport.name}] 정렬 메뉴가 버튼 아래에 떠서 카드 위로 보임`,
+        sortMenu.box.top >= sortMenu.triggerBox.bottom + 4 &&
+          sortMenu.box.bottom <= viewport.height &&
+          sortMenu.box.left >= 0 &&
+          sortMenu.box.right <= viewport.width &&
+          sortMenu.aboveCards,
+        `메뉴 ${sortMenu.box.top}~${sortMenu.box.bottom}px · 버튼 아래 ${sortMenu.box.top - sortMenu.triggerBox.bottom}px · 카드 위 ${sortMenu.aboveCards}`,
+      );
+      check(
+        `[${viewport.name}] 정렬 메뉴 카드 스타일(표면·12px·선택 강조)`,
+        sortMenu.radius === 12 &&
+          sortMenu.background !== sortMenu.pageBackground &&
+          sortMenu.selectedBackground !== sortMenu.plainBackground &&
+          sortMenu.focusedText === '스타 많은 순',
+        `radius ${sortMenu.radius} · 배경 ${sortMenu.background}/${sortMenu.pageBackground} · 선택 ${sortMenu.selectedBackground} · 포커스 "${sortMenu.focusedText}"`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `sort-open-${viewport.name}.png`), viewport);
+
+      // 항목을 고르면 상태·해시·정렬이 함께 바뀌고 메뉴가 닫힌다.
+      await page.click('.sort-option[data-sort="updated"]');
+      await page.waitForFunction(() => document.getElementById('sort').getAttribute('aria-expanded') === 'false');
+      await page.waitForFunction(
+        (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,
+        {},
+        updatedFirst,
+      );
+      const sortPicked = await page.evaluate(() => ({
+        value: document.getElementById('sort').dataset.value,
+        label: document.getElementById('sort-value').textContent.trim(),
+        hash: location.hash,
+        focused: document.activeElement?.id,
+        hidden: document.getElementById('sort-menu').hidden,
+      }));
+      check(
+        `[${viewport.name}] 정렬 선택 → 최신 업데이트 순 반영`,
+        sortPicked.value === 'updated' &&
+          sortPicked.label === '최신 업데이트 순' &&
+          sortPicked.hash.includes('sort=updated') &&
+          sortPicked.hidden &&
+          sortPicked.focused === 'sort',
+        `"${sortPicked.label}" · ${sortPicked.hash} · 첫 카드 ${updatedFirst} · 포커스 ${sortPicked.focused}`,
+      );
+
+      // 키보드: Enter로 열고, 화살표로 옮기고, Enter로 고른다.
+      await page.focus('#sort');
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => !document.getElementById('sort-menu').hidden);
+      const keyboardOpenFocus = await page.evaluate(
+        () => document.activeElement?.closest('.sort-option')?.textContent.trim() ?? '',
+      );
+      await page.keyboard.press('ArrowDown');
+      const keyboardMovedFocus = await page.evaluate(
+        () => document.activeElement?.closest('.sort-option')?.textContent.trim() ?? '',
+      );
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(
+        (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,
+        {},
+        nameFirst,
+      );
+      const keyboardPick = await page.evaluate(() => ({
+        value: document.getElementById('sort').dataset.value,
+        hash: location.hash,
+      }));
+      check(
+        `[${viewport.name}] 정렬 키보드 조작(Enter·화살표·Enter)`,
+        keyboardOpenFocus === '최신 업데이트 순' &&
+          keyboardMovedFocus === '이름 순' &&
+          keyboardPick.value === 'name' &&
+          keyboardPick.hash.includes('sort=name'),
+        `열 때 "${keyboardOpenFocus}" → 화살표 "${keyboardMovedFocus}" → 선택 ${keyboardPick.value}`,
+      );
+
+      // Escape로 닫히고 포커스는 버튼으로 돌아온다.
+      await openSort(page);
+      await page.keyboard.press('Escape');
+      const sortEscape = await page.evaluate(() => ({
+        hidden: document.getElementById('sort-menu').hidden,
+        expanded: document.getElementById('sort').getAttribute('aria-expanded'),
+        focused: document.activeElement?.id,
+      }));
+      check(
+        `[${viewport.name}] 정렬 Escape로 닫힘`,
+        sortEscape.hidden && sortEscape.expanded === 'false' && sortEscape.focused === 'sort',
+        `닫힘 ${sortEscape.hidden} · 포커스 ${sortEscape.focused}`,
+      );
+
+      // 바깥 클릭으로도 닫힌다.
+      await openSort(page);
+      await page.mouse.click(8, viewport.height - 8);
+      const sortOutside = await page.evaluate(() => document.getElementById('sort-menu').hidden);
+      check(`[${viewport.name}] 정렬 메뉴 바깥 클릭으로 닫힘`, sortOutside, `닫힘 ${sortOutside}`);
+      await chooseSort(page, 'stars');
+
       const overflow = await page.evaluate(() => {
         const doc = document.documentElement;
         const limit = doc.clientWidth;
@@ -625,37 +828,63 @@ async function main() {
           widths: tabs.map((node) => Math.round(node.getBoundingClientRect().width * 10) / 10),
           justify: i.justifyContent,
           textAlign: i.textAlign,
+          fontSize: parseFloat(i.fontSize),
+          fontWeight: Number(i.fontWeight),
+          minWidth: i.minWidth,
         };
       });
       check(
         `[${viewport.name}] 카테고리 개별 필 칩(트랙 없음·좌우 여백)`,
         tabStyle.count === 6 &&
           tabStyle.borderWidth === '1px' &&
-          tabStyle.paddingLeft >= 12 &&
-          tabStyle.paddingRight >= 12 &&
-          tabStyle.height >= 32 &&
+          tabStyle.paddingLeft >= 13 &&
+          tabStyle.paddingRight >= 13 &&
+          tabStyle.height >= 33 &&
+          tabStyle.height <= 37 &&
           tabStyle.gap >= 4 &&
           tabStyle.trackBg === 'rgba(0, 0, 0, 0)' &&
+          tabStyle.fontSize >= 13.4 &&
           tabStyle.offsetLeft >= (viewport.width < 768 ? 15 : 0),
-        `${tabStyle.count}개 · 패딩 ${tabStyle.paddingLeft}/${tabStyle.paddingRight} · 높이 ${tabStyle.height} · 간격 ${tabStyle.gap} · 트랙배경 ${tabStyle.trackBg} · 첫 칩 오프셋 ${tabStyle.offsetLeft}`,
+        `${tabStyle.count}개 · 패딩 ${tabStyle.paddingLeft}/${tabStyle.paddingRight} · 높이 ${tabStyle.height} · 글자 ${tabStyle.fontSize}px/${tabStyle.fontWeight} · 간격 ${tabStyle.gap} · 트랙배경 ${tabStyle.trackBg} · 첫 칩 오프셋 ${tabStyle.offsetLeft}`,
       );
       check(
         `[${viewport.name}] 활성 카테고리 대비(색 반전)`,
         tabStyle.activeBg !== tabStyle.inactiveBg,
         `활성 ${tabStyle.activeBg} · 비활성 ${tabStyle.inactiveBg} · ${tabStyle.labels.join(' / ')}`,
       );
-      // '전체'처럼 짧은 칩도 최소 폭을 채워 칩 크기 편차를 줄인다.
+      // 고정 min-width를 풀어 글자 길이에 맞춘 자연 폭이 됐는지: 박스가 글자보다 과하게 남지 않아야 한다.
       {
-        const tabWidths = tabStyle.widths;
-        const tabSpread = Math.round((Math.max(...tabWidths) - Math.min(...tabWidths)) * 10) / 10;
+        const tabFit = await page.evaluate(() => {
+          const measure = (node) => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const style = getComputedStyle(node);
+            const box = node.getBoundingClientRect();
+            return {
+              label: node.textContent.trim(),
+              width: Math.round(box.width * 10) / 10,
+              textWidth: Math.round(range.getBoundingClientRect().width * 10) / 10,
+              height: Math.round(box.height * 10) / 10,
+              pad: parseFloat(style.paddingLeft),
+              minWidth: style.minWidth,
+              justifyContent: style.justifyContent,
+              textAlign: style.textAlign,
+            };
+          };
+          return [...document.querySelectorAll('#tabs .tab')].map(measure);
+        });
+        const fitsText = tabFit.every(
+          (tab) =>
+            tab.width >= tab.textWidth + tab.pad * 2 - 1 && tab.width <= tab.textWidth + tab.pad * 2 + 3,
+        );
+        const noFixedWidth = tabFit.every((tab) => !/^[\d.]+px$/.test(tab.minWidth) || parseFloat(tab.minWidth) === 0);
         check(
-          `[${viewport.name}] 카테고리 칩 폭 편차(최소 76px·중앙 정렬)`,
-          tabWidths.length === 6 &&
-            Math.min(...tabWidths) >= 76 &&
-            tabSpread <= 24 &&
-            tabStyle.justify === 'center' &&
-            tabStyle.textAlign === 'center',
-          `${tabWidths.join('/')} · 편차 ${tabSpread}px · 정렬 ${tabStyle.justify}/${tabStyle.textAlign}`,
+          `[${viewport.name}] 카테고리 칩은 글자에 맞춘 자연 폭(빈 여백 없음)`,
+          fitsText &&
+            noFixedWidth &&
+            tabFit.every((tab) => tab.height >= 33 && tab.height <= 37) &&
+            tabFit.every((tab) => tab.justifyContent === 'center' && tab.textAlign === 'center'),
+          `${tabFit.map((tab) => `${tab.label} ${tab.width}(글자 ${tab.textWidth})`).join(' / ')} · min-width ${tabFit[0].minWidth}`,
         );
       }
 
@@ -722,58 +951,68 @@ async function main() {
         `height ${opened.height}px · 칩 ${opened.items}개`,
       );
 
-      // 필터 칩 크기 균일: 글자 길이와 무관하게 가로·세로가 같고, 좁은 화면은 2열 격자로 폭이 꼭 맞는다.
+      // 필터 칩: 카테고리 칩과 같은 높이·글자 크기, 글자 길이에 맞춘 자연 폭(좁은 화면은 자연 줄바꿈).
       const chipShape = await page.evaluate(() => {
         const round = (value) => Math.round(value * 10) / 10;
         const chips = [...document.querySelectorAll('#chips .chip')];
         const boxes = chips.map((node) => {
           const rect = node.getBoundingClientRect();
           const style = getComputedStyle(node);
+          const range = document.createRange();
+          range.selectNodeContents(node);
           return {
             label: node.textContent.trim(),
             width: round(rect.width),
+            textWidth: round(range.getBoundingClientRect().width),
             height: round(rect.height),
             left: Math.round(rect.left),
             top: Math.round(rect.top),
+            pad: parseFloat(style.paddingLeft),
+            font: parseFloat(style.fontSize),
+            weight: Number(style.fontWeight),
             justify: style.justifyContent,
             textAlign: style.textAlign,
           };
         });
-        const grid = getComputedStyle(document.getElementById('chips'));
-        return {
-          boxes,
-          display: grid.display,
-          columns: grid.gridTemplateColumns.split(' ').filter(Boolean).length,
-        };
+        const track = getComputedStyle(document.getElementById('chips'));
+        return { boxes, display: track.display, flexWrap: track.flexWrap };
       });
       {
-        const chipWidths = chipShape.boxes.map((box) => box.width);
-        const chipHeights = chipShape.boxes.map((box) => box.height);
-        const widthSpread = Math.round((Math.max(...chipWidths) - Math.min(...chipWidths)) * 10) / 10;
-        const heightSpread = Math.round((Math.max(...chipHeights) - Math.min(...chipHeights)) * 10) / 10;
-        // 560px 미만: 2열 격자(첫 두 칩이 같은 줄, 셋째부터 다음 줄, 열 왼쪽 끝이 맞는다)
-        const twoColumnLayout =
-          chipShape.display === 'grid' &&
-          chipShape.columns === 2 &&
-          chipShape.boxes[0].top === chipShape.boxes[1].top &&
-          chipShape.boxes[0].top !== chipShape.boxes[2].top &&
-          chipShape.boxes[2].top === chipShape.boxes[3].top &&
-          chipShape.boxes[0].left === chipShape.boxes[2].left &&
-          chipShape.boxes[2].left === chipShape.boxes[4].left;
-        const layoutOk = viewport.width < 560 ? twoColumnLayout : chipShape.boxes.every((box) => box.top === chipShape.boxes[0].top);
+        const boxes = chipShape.boxes;
+        const heights = boxes.map((box) => box.height);
+        const rows = [...new Set(boxes.map((box) => box.top))];
+        const expectedRows = viewport.width < 560 ? 2 : 1;
+        // 줄마다 첫 칩의 왼쪽 끝이 맞고, 같은 줄 칩은 높이가 같다.
+        const rowStarts = rows.map((top) => boxes.find((box) => box.top === top).left);
+        const aligned = new Set(rowStarts).size === 1;
+        const fitsText = boxes.every(
+          (box) => box.width >= box.textWidth + box.pad * 2 && box.width <= box.textWidth + box.pad * 2 + 18,
+        );
         check(
-          `[${viewport.name}] 필터 칩 크기 균일(${viewport.width < 560 ? '2열 동일 폭' : '한 줄 동일 폭'})`,
-          chipShape.boxes.length === 5 &&
-            widthSpread <= 1 &&
-            heightSpread <= 1 &&
-            chipHeights.every((height) => height >= 36 && height <= 40) &&
-            chipShape.boxes.every((box) => box.justify === 'center' && box.textAlign === 'center') &&
-            layoutOk,
-          `가로 ${Math.min(...chipWidths)}~${Math.max(...chipWidths)}px(편차 ${widthSpread}) · 세로 ${Math.min(
-            ...chipHeights,
-          )}~${Math.max(...chipHeights)}px(편차 ${heightSpread}) · ${chipShape.display}${
-            chipShape.display === 'grid' ? ` ${chipShape.columns}열` : ''
-          } · 정렬 ${chipShape.boxes[0].justify}/${chipShape.boxes[0].textAlign}`,
+          `[${viewport.name}] 필터 칩도 글자에 맞춘 자연 폭(${expectedRows}줄·같은 높이)`,
+          boxes.length === 5 &&
+            chipShape.display === 'flex' &&
+            chipShape.flexWrap === 'wrap' &&
+            rows.length === expectedRows &&
+            aligned &&
+            heights.every((height) => height >= 33 && height <= 37) &&
+            boxes.every((box) => box.font >= 13.4 && box.weight <= 600) &&
+            boxes.every((box) => box.justify === 'center' && box.textAlign === 'center') &&
+            fitsText,
+          `${boxes.map((box) => `${box.label} ${box.width}(글자 ${box.textWidth})`).join(' / ')} · 높이 ${Math.min(...heights)}~${Math.max(
+            ...heights,
+          )}px · ${chipShape.display}/${chipShape.flexWrap} ${rows.length}줄 · 글자 ${boxes[0].font}px`,
+        );
+        // 카테고리 칩과 필터 칩은 같은 치수, 위쪽 검색·정렬·필터(40/46px)보다 한 단계 작다.
+        const hierarchy = await page.evaluate(() => ({
+          chip: Math.round(document.querySelector('#chips .chip').getBoundingClientRect().height),
+          tab: Math.round(document.querySelector('#tabs .tab').getBoundingClientRect().height),
+          control: Math.round(document.getElementById('q').getBoundingClientRect().height),
+        }));
+        check(
+          `[${viewport.name}] 칩 높이 위계(칩 = 카테고리 < 상단 컨트롤)`,
+          hierarchy.chip === hierarchy.tab && hierarchy.chip <= hierarchy.control - 4,
+          `칩 ${hierarchy.chip} · 카테고리 ${hierarchy.tab} · 상단 컨트롤 ${hierarchy.control}px`,
         );
       }
       await settle(page);
@@ -823,7 +1062,7 @@ async function main() {
       await screenshot(page, path.join(OUT_DIR, `search-${viewport.name}.png`), viewport);
 
       // 유의어 검색: '화면' 하나로 UI·프론트엔드 항목이 나오고, 정렬은 관련도 순이 된다
-      const screenSorted = await page.$eval('#sort', (node) => node.value);
+      const screenSorted = await sortValue(page);
       check(`[${viewport.name}] 검색하면 정렬이 관련도 순`, screenSorted === 'relevance', screenSorted);
       const screenHits = expectedNames(repos, { query: '화면' });
       await page.evaluate(() => {
@@ -852,7 +1091,7 @@ async function main() {
         input.value = '';
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
-      const sortAfterClear = await page.$eval('#sort', (node) => node.value);
+      const sortAfterClear = await sortValue(page);
       check(`[${viewport.name}] 검색을 지우면 스타순으로 복귀`, sortAfterClear === 'stars', sortAfterClear);
       await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
 
@@ -968,7 +1207,7 @@ async function main() {
       // 필터 해제 + 정렬
       await page.click('#reset');
       await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
-      await page.select('#sort', 'updated');
+      await chooseSort(page, 'updated');
       await page.waitForFunction(
         (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,
         {},
@@ -976,7 +1215,7 @@ async function main() {
       );
       const firstUpdated = await page.$eval('.card-title', (el) => el.textContent.trim());
       check(`[${viewport.name}] 최신 업데이트 정렬`, firstUpdated === updatedFirst, firstUpdated);
-      await page.select('#sort', 'stars');
+      await chooseSort(page, 'stars');
       await page.waitForFunction(
         (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,
         {},
@@ -1069,6 +1308,45 @@ async function main() {
           .map(([key, value]) => `${key} ${value}:1`)
           .join(' · '),
       );
+      // 다크 모드의 정렬 메뉴도 같은 토큰을 쓰는지(표면·선택 강조) + 대비 유지
+      await page.click('#sort');
+      await page.waitForFunction(() => !document.getElementById('sort-menu').hidden);
+      await settle(page, 240);
+      const darkMenu = await page.evaluate(() => {
+        const parse = (value) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        const luminance = (rgb) => {
+          const [r, g, b] = rgb.map((channel) => {
+            const c = channel / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (fg, bg) => {
+          const a = luminance(parse(fg));
+          const b = luminance(parse(bg));
+          return Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+        };
+        const menu = document.getElementById('sort-menu');
+        const menuBg = getComputedStyle(menu).backgroundColor;
+        const plain = menu.querySelector('.sort-option[aria-selected="false"]');
+        const selected = menu.querySelector('.sort-option[aria-selected="true"]');
+        return {
+          menuBg,
+          pageBg: getComputedStyle(document.body).backgroundColor,
+          plainRatio: ratio(getComputedStyle(plain).color, menuBg),
+          selectedRatio: ratio(getComputedStyle(selected).color, getComputedStyle(selected).backgroundColor),
+          label: selected.textContent.trim(),
+        };
+      });
+      check(
+        `[${viewport.name}] 다크 모드 정렬 메뉴 표면·대비`,
+        darkMenu.menuBg !== darkMenu.pageBg && darkMenu.plainRatio >= 4.5 && darkMenu.selectedRatio >= 4.5,
+        `메뉴 ${darkMenu.menuBg}/바탕 ${darkMenu.pageBg} · 항목 ${darkMenu.plainRatio}:1 · 선택 ${darkMenu.selectedRatio}:1`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `sort-open-${viewport.name}-dark.png`), viewport);
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.getElementById('sort-menu').hidden);
+
       // 색 전환 트랜지션이 끝난 뒤에 캐처해야 화면이 그대로 보인다.
       await settle(page, 200);
       await screenshot(page, path.join(OUT_DIR, `home-${viewport.name}-dark.png`), viewport);

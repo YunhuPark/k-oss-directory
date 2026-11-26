@@ -34,6 +34,10 @@
   --radius: 14px;
   --radius-lg: 18px;
   --radius-sm: 8px;
+  /* 칩(카테고리·필터) 공통 치수: 글자에 맞춘 자연 폭·높이. 위쪽 컨트롤(40/46px)보다 한 단계 작다. */
+  --chip-h: 34px;
+  --chip-pad: 14px;
+  --chip-font: 13.5px;
   --max: 1120px;
   --font: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR",
     "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -373,33 +377,141 @@ a:hover {
   cursor: pointer;
 }
 
+/* 정렬: 네이티브 <select> 대신 사이트 토큰으로 만든 드롭다운.
+   닫힌 버튼은 검색창(.search input)과 같은 높이·모서리(모바일 40px / 560px부터 46px)이고,
+   누르면 아래로 같은 폭의 메뉴 카드가 열린다. */
 .sort {
+  position: relative;
   display: block;
   min-width: 0;
 }
 
-.sort select {
+.sort-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
-  /* 검색창(.search input)과 같은 높이·모서리로 맞춘다: 모바일 40px / 560px부터 46px. */
   height: 40px;
-  padding: 0 30px 0 12px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--surface)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.6'/%3E%3C/svg%3E")
-    no-repeat right 11px center;
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;
-  appearance: none;
+  white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.14s ease, background-color 0.14s ease;
 }
 
-.sort select:focus {
-  outline: none;
+.sort-trigger:hover {
+  border-color: var(--line-strong);
+}
+
+.sort-trigger[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+}
+
+.sort-trigger:focus-visible {
   border-color: var(--accent);
+}
+
+.sort-trigger .sort-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sort-caret {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 6px;
+  color: var(--muted);
+  transition: transform 0.16s ease;
+}
+
+.sort-trigger[aria-expanded="true"] .sort-caret {
+  transform: rotate(180deg);
+}
+
+/* 열린 메뉴: 카드와 같은 표면·1px 선·12px 라운딩, 부드러운 그림자 */
+.sort-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  min-width: max(100%, 172px);
+  max-width: calc(100vw - 32px);
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+  animation: menu-in 0.14s ease;
+}
+
+.sort-menu[hidden] {
+  display: none;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.sort-option:hover,
+.sort-option:focus-visible {
+  background: var(--surface-soft);
+  outline-offset: -2px;
+}
+
+.sort-option[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sort-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+.sort-option[aria-selected="true"] .sort-check {
+  visibility: visible;
 }
 
 /* 필터 접기/펼치기: 선택한 개수를 배지로 보여준다 */
@@ -534,17 +646,16 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 76px;
-  min-height: 32px;
-  padding: 4px 13px;
+  /* 글자 길이에 맞춘 자연 폭: 고정 min-width로 생기던 빈 여백을 없앤다. */
+  min-height: var(--chip-h);
+  padding: 0 var(--chip-pad);
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  /* '전체'처럼 짧은 칩도 최소 폭을 채워 글자 길이 때문에 칩 크기가 들쑥날쑥하지 않게 한다. */
+  font-size: var(--chip-font);
+  font-weight: 500;
   text-align: center;
   white-space: nowrap;
   cursor: pointer;
@@ -603,11 +714,11 @@ a:hover {
   color: var(--muted);
 }
 
-/* 필터 칩은 글자 길이와 상관없이 같은 크기로 둔다.
-   좁은 화면에서는 2열 격자로 모든 칩의 가로·세로를 똑같이 맞춘다. */
+/* 필터 칩도 카테고리 칩과 같은 치수(--chip-h/--chip-pad)로 글자에 맞춰 늘어선다.
+   좁은 화면에서는 고정 2열 대신 자연스럽게 줄바꿈해 빈 여백을 남기지 않는다. */
 .chips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -616,16 +727,15 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: 100%;
-  min-height: 38px;
-  padding: 6px 10px;
+  min-height: var(--chip-h);
+  padding: 0 var(--chip-pad);
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--chip-font);
+  font-weight: 500;
   white-space: nowrap;
   text-align: center;
   cursor: pointer;
@@ -1428,16 +1538,19 @@ a:hover {
     height: 46px;
   }
 
-  .sort select,
+  .sort-trigger,
   .filter-toggle {
     height: 46px;
   }
 
-  .sort select {
-    width: auto;
+  /* 글자가 긴 정렬 이름도 잘리지 않도록 버튼이 내용만큼 늘어난다. */
+  .sort {
+    flex: 0 0 auto;
     min-width: 152px;
-    padding: 0 34px 0 14px;
-    background-position: right 13px center;
+  }
+
+  .sort-trigger {
+    padding: 0 14px;
     border-radius: 12px;
     font-size: 14px;
     font-weight: 500;
@@ -1449,16 +1562,9 @@ a:hover {
     font-size: 14px;
   }
 
-  /* 칩이 한 줄에 여러 개 놓이는 폭에서는 최소 폭을 같게 두어 글자 길이와 무관하게 폭이 맞는다. */
+  /* 칩이 한 줄에 여러 개 놓이는 폭에서도 자연 폭·같은 높이를 유지한다. */
   .chips {
-    display: flex;
-    flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .chip {
-    width: auto;
-    min-width: 120px;
   }
 
   .detail-head {
@@ -1518,9 +1624,24 @@ a:hover {
     border-color: var(--accent);
   }
 
-  .sort select {
-    background-color: var(--field);
+  /* 넓은 화면에서는 칩을 한 단계 키워 위쪽 컨트롤(46px)과 위계를 맞춘다. */
+  :root {
+    --chip-h: 36px;
+    --chip-pad: 15px;
+  }
+
+  .sort-trigger {
+    background: var(--field);
     border-color: transparent;
+  }
+
+  .sort-trigger:hover {
+    border-color: var(--line-strong);
+  }
+
+  .sort-trigger[aria-expanded="true"] {
+    background: var(--surface-soft);
+    border-color: var(--line-strong);
   }
 
   .filter-toggle {
@@ -1559,10 +1680,6 @@ a:hover {
   .tab {
     background: transparent;
     border-color: var(--line);
-    min-width: 104px;
-    min-height: 36px;
-    padding: 6px 15px;
-    font-size: 13.5px;
   }
 
   .filter-panel {
@@ -1572,9 +1689,7 @@ a:hover {
   }
 
   .chip {
-    min-height: 40px;
-    padding: 6px 13px;
-    font-size: 13px;
+    min-height: var(--chip-h);
   }
 
   .status-row {
