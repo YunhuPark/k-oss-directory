@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 import {
   FILTERS,
   FILTER_KEYS,
+  PAGE_SIZE,
   formatRelativeDate,
   formatStars,
   matchesCategory,
   matchesQuery,
+  nextVisibleCount,
+  pageCount,
   passesFilters,
+  queryTokens,
+  remainingCount,
   selectRepos,
   sortRepos,
 } from '../../public/lib/filter.mjs';
@@ -92,6 +97,59 @@ test('matchesQuery: 이름·소개·태그·영문 설명·대소문자 무시',
 test('matchesQuery: 여러 단어는 모두 포함(AND)', () => {
   assert.equal(matchesQuery(base, '토스 lodash'), true);
   assert.equal(matchesQuery(base, '토스 파이썬'), false);
+});
+
+test('queryTokens: 하이픈·밑줄·슬래시·공백을 모두 구분자로 본다', () => {
+  assert.deepEqual(queryTokens('k-ui-ux'), ['k', 'ui', 'ux']);
+  assert.deepEqual(queryTokens('TanStack/query'), ['tanstack', 'query']);
+  assert.deepEqual(queryTokens('snake_case name'), ['snake', 'case', 'name']);
+  assert.deepEqual(queryTokens('  ---  '), []);
+  assert.deepEqual(queryTokens(''), []);
+});
+
+test('matchesQuery: k-ui-ux로 k-style-ui-ux가 바로 걸린다', () => {
+  const kStyle = {
+    ...base,
+    repo: 'vmc-inner-circle/k-style-ui-ux',
+    name: 'k-style-ui-ux',
+    vendor: 'VMC',
+    summary: '한국형 UI/UX 스타일 시스템',
+    description: 'Korean style UI/UX kit',
+    tags: ['디자인 시스템'],
+    language: 'TypeScript',
+  };
+  assert.equal(matchesQuery(kStyle, 'k-ui-ux'), true);
+  assert.equal(matchesQuery(kStyle, 'K-UI-UX'), true);
+  assert.deepEqual(selectRepos([base, kStyle], { query: 'k-ui-ux' }).map((repo) => repo.name), ['k-style-ui-ux']);
+});
+
+test('matchesQuery: 짧은 영문 토큰은 낱말 경계에서만 맞춘다', () => {
+  // 'k'가 unsloth 같은 낱말 속 글자에 걸리면 k-ui-ux 검색이 흐려진다
+  const unsloth = { ...base, name: 'unsloth', repo: 'unslothai/unsloth', summary: '적은 메모리로 미세조정', description: 'Finetune LLMs faster', tags: [] };
+  assert.equal(matchesQuery(unsloth, 'k'), false);
+  assert.equal(matchesQuery({ ...unsloth, name: 'k-tool', repo: 'x/k-tool', description: '' }, 'k'), true);
+  // 한글 토큰은 조사가 붙어도 찾는다
+  assert.equal(matchesQuery(base, '유틸리티'), true);
+});
+
+test('matchesQuery: 분류 이름으로도 찾는다', () => {
+  assert.equal(matchesQuery(base, '프론트엔드'), true);
+  assert.equal(matchesQuery({ ...base, category: 'ai' }, '프론트엔드'), false);
+  assert.equal(matchesQuery({ ...base, category: 'ai' }, 'ai'), true);
+});
+
+test('페이지 나누기: 24개씩, 남은 수·다음 표시 수', () => {
+  assert.equal(PAGE_SIZE, 24);
+  assert.equal(pageCount(260), 24);
+  assert.equal(pageCount(10), 10);
+  assert.equal(pageCount(0), 0);
+  assert.equal(remainingCount(260), 236);
+  assert.equal(remainingCount(24), 0);
+  assert.equal(remainingCount(10), 0);
+  assert.equal(nextVisibleCount(24), 48);
+  assert.equal(nextVisibleCount(0), 24);
+  assert.equal(pageCount(30, 48), 30); // 끝을 넘기지 않는다
+  assert.equal(remainingCount(30, 24), 6);
 });
 
 test('matchesCategory', () => {

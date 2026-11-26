@@ -904,6 +904,46 @@ a:hover {
   text-overflow: ellipsis;
 }
 
+/* ── 더 보기 ───────────────────────── */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 30px;
+}
+
+.load-more-wrap[hidden] {
+  display: none;
+}
+
+.load-more {
+  min-height: 44px;
+  padding: 10px 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.load-more:hover {
+  border-color: var(--text);
+  background: var(--surface-soft);
+}
+
+.load-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.load-more[hidden] {
+  display: none;
+}
+
 /* ── 빈 상태·오류 ─────────────────────── */
 .empty,
 .load-error {

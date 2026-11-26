@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>K-OSS Directory — 국산 오픈소스, 한국어로 쓰는 것만</title>
+    <title>K-OSS Directory — 실무에 붙는 오픈소스, 글로벌과 한국</title>
     <meta
       name="description"
-      content="한국 팀·기업·개인 개발자가 만든 오픈소스를 한국어 문서 지원, 상업 무료 라이선스, Docker 실행, 최근 업데이트 기준으로 한 화면에서 비교하는 디렉토리."
+      content="해외 인디 개발자·소규모 팀과 한국 팀·개인 개발자가 만든 실무 오픈소스를 상업 무료 라이선스, 최근 업데이트, 한국어 문서, Docker 실행 기준으로 한 화면에서 비교하는 디렉토리."
     />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f4f5f7" />
     <meta property="og:title" content="K-OSS Directory" />
-    <meta property="og:description" content="국산 오픈소스, 한국어로 쓰는 것만 골랐습니다." />
+    <meta property="og:description" content="글로벌 인디 오픈소스와 국내 프로젝트를 같은 기준으로 골랐습니다." />
     <meta property="og:type" content="website" />
     <script>
       /* 저장된 테마를 첫 페인트 전에 적용한다(FOUC 없음). 값이 없으면 OS 설정을 따른다. */
@@ -90,11 +90,12 @@
       </noscript>
 
       <section class="hero">
-        <p class="eyebrow">KOREAN OPEN SOURCE · CURATED</p>
-        <h1>한국에서 만든 오픈소스,<br /><span class="accent">실무에 붙일 수 있는 것만.</span></h1>
+        <p class="eyebrow">GLOBAL · KOREA · CURATED</p>
+        <h1>실무에 붙는 오픈소스,<br /><span class="accent">글로벌과 한국을 함께.</span></h1>
         <p class="lede">
-          한국어 문서 · 상업 무료 라이선스 · Docker 실행 · 최근 업데이트를 카드 한 장에서 비교합니다.
-          별점 순위표가 아니라 <strong>지금 쓸 수 있는지</strong>를 먼저 봅니다.
+          해외 인디 개발자·소규모 팀의 프로젝트와 국내 팀·개인 개발자 저장소를 같은 기준으로 비교합니다.
+          상업 무료 라이선스 · 최근 업데이트 · 한국어 문서 · Docker 실행을 카드 한 장에서 보고, 별점 순위표가 아니라
+          <strong>지금 쓸 수 있는지</strong>를 먼저 봅니다.
         </p>
       </section>
 
@@ -109,7 +110,7 @@
             <input
               id="q"
               type="search"
-              placeholder="차트, React, 형태소로 검색"
+              placeholder="차트, React, 형태소, self-hosted로 검색"
               autocomplete="off"
               spellcheck="false"
             />
@@ -160,6 +161,10 @@
       </section>
 
       <section id="grid" class="grid" aria-label="저장소 목록"></section>
+
+      <div class="load-more-wrap" id="load-more-wrap">
+        <button class="load-more" id="load-more" type="button" aria-controls="grid" hidden></button>
+      </div>
 
       <div id="empty" class="empty" hidden>
         <p class="empty-title">조건에 맞는 저장소가 없습니다.</p>

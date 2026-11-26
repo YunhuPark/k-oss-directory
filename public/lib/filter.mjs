@@ -21,6 +21,9 @@ export const SORTS = [
   { key: 'name', label: '이름 순' },
 ];
 
+/** 한 번에 보여 주는 카드 수. '더 보기'를 누를 때마다 이만큼씩 늘어난다. */
+export const PAGE_SIZE = 24;
+
 export function normalize(text) {
   return String(text ?? '')
     .toLowerCase()
@@ -28,15 +31,52 @@ export function normalize(text) {
     .trim();
 }
 
-/** 검색 대상: 이름·저장소 경로·만든 곳·한 줄 소개·원문 설명·태그·언어 */
+/**
+ * 검색어 토큰: 하이픈·밑줄·슬래시·공백은 모두 구분자로 본다.
+ * 'k-ui-ux' → ['k','ui','ux'] 이므로 'k-style-ui-ux'가 바로 걸린다.
+ */
+export function queryTokens(query) {
+  return normalize(query)
+    .split(/[\s\-_/]+/)
+    .filter(Boolean);
+}
+
+/** 이번에 그릴 카드 수: 지금까지 펼친 수와 전체 중 작은 쪽. */
+export function pageCount(total, visible = PAGE_SIZE) {
+  const size = Number.isFinite(Number(visible)) ? Number(visible) : PAGE_SIZE;
+  return Math.max(0, Math.min(Number(total) || 0, size));
+}
+
+/** 남은 카드 수(더 보기 버튼 문구용). */
+export function remainingCount(total, visible = PAGE_SIZE) {
+  return Math.max(0, (Number(total) || 0) - pageCount(total, visible));
+}
+
+/** 더 보기를 한 번 눌렀을 때의 표시 수 */
+export function nextVisibleCount(visible = PAGE_SIZE) {
+  return pageCount(Number.MAX_SAFE_INTEGER, Number(visible) + PAGE_SIZE);
+}
+
+/** 검색 대상: 이름·저장소 경로·만든 곳·한 줄 소개·원문 설명·태그·분류·언어 */
+const CATEGORY_LABELS = {
+  frontend: '프론트엔드',
+  ai: 'AI·데이터',
+  backend: '백엔드·인프라',
+  tool: '개발 도구',
+  learn: '학습·자료',
+};
+
 function haystack(repo) {
   return normalize(
     [
       repo.name,
       repo.repo,
+      repo.owner,
       repo.vendor,
       repo.summary,
       repo.description,
+      repo.category,
+      CATEGORY_LABELS[repo.category],
       repo.language,
       (repo.tags ?? []).join(' '),
       (repo.topics ?? []).join(' '),
@@ -46,10 +86,22 @@ function haystack(repo) {
   );
 }
 
+/**
+ * 짧은 영문 토큰(k, ui 같은 1~2자)은 낱말 경계에서만 맞춰야 엉뚱한 결과가 안 쏟아진다.
+ * 'k-ui-ux'의 k가 'unsloth' 속 글자에 걸리는 일을 막는다. 한글 토큰은 조사가 붙어도
+ * 찾을 수 있도록 그대로 부분 일치로 본다.
+ */
+function containsToken(text, token) {
+  if (!/^[a-z0-9]+$/.test(token) || token.length >= 3) return text.includes(token);
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(text);
+}
+
 export function matchesQuery(repo, query) {
-  const needle = normalize(query);
-  if (!needle) return true;
-  return needle.split(' ').every((token) => haystack(repo).includes(token));
+  const tokens = queryTokens(query);
+  if (tokens.length === 0) return true;
+  const text = haystack(repo);
+  return tokens.every((token) => containsToken(text, token));
 }
 
 export function matchesCategory(repo, category) {

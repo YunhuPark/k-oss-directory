@@ -18,7 +18,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './serve.mjs';
-import { selectRepos } from '../public/lib/filter.mjs';
+import { PAGE_SIZE, selectRepos } from '../public/lib/filter.mjs';
 
 const require = createRequire(import.meta.url);
 const puppeteer = require(process.env.PUPPETEER_PATH || 'puppeteer');
@@ -65,6 +65,10 @@ function settle(page, ms = 260) {
 function expectedNames(repos, options) {
   return selectRepos(repos, options).map((repo) => repo.name);
 }
+
+/** 첫 화면에 보이는 카드 수: 24개씩 '더 보기'로 늘어난다. */
+const firstPage = (names) => names.slice(0, PAGE_SIZE);
+const firstPageCount = (count) => Math.min(count, PAGE_SIZE);
 
 /** 세부 필터는 기본적으로 접혀 있다. 칩을 누르기 전에 패널을 펼친다. */
 async function openFilters(page) {
@@ -130,7 +134,31 @@ async function main() {
       }
 
       const cards = await page.$$eval('.card', (nodes) => nodes.length);
-      check(`[${viewport.name}] 카드 ${total}개 렌더`, cards === total, `${cards}개`);
+      const rendered = firstPageCount(total);
+      check(
+        `[${viewport.name}] 첫 화면 카드 ${rendered}개만 렌더(총 ${total}개)`,
+        cards === rendered,
+        `${cards}개`,
+      );
+      const moreState = await page.evaluate(() => {
+        const button = document.getElementById('load-more');
+        return {
+          hidden: button.hidden,
+          text: button.textContent.trim(),
+          label: button.getAttribute('aria-label') ?? '',
+          height: Math.round(button.getBoundingClientRect().height),
+          afterGrid: button.getBoundingClientRect().top >= document.getElementById('grid').getBoundingClientRect().top,
+        };
+      });
+      check(
+        `[${viewport.name}] 더 보기 버튼 문구·위치`,
+        !moreState.hidden &&
+          moreState.text === `더 보기 (${total - rendered}개 남음)` &&
+          /남음/.test(moreState.label) &&
+          moreState.height >= 32 &&
+          moreState.afterGrid,
+        `"${moreState.text}" · ${moreState.height}px · 목록 아래 ${moreState.afterGrid}`,
+      );
 
       const logos = await page.evaluate(() => ({
         tiles: document.querySelectorAll('.card .card-logo').length,
@@ -139,7 +167,7 @@ async function main() {
       }));
       check(
         `[${viewport.name}] 카드 아바타 32px + 이니셜 폴백`,
-        logos.tiles === total && logos.avatars === total && logos.initials === total,
+        logos.tiles === rendered && logos.avatars === rendered && logos.initials === rendered,
         `타일 ${logos.tiles} · 이미지 ${logos.avatars} · 이니셜 ${logos.initials}`,
       );
 
@@ -364,6 +392,42 @@ async function main() {
         }px`,
       );
 
+      // '더 보기': 누를 때마다 24개씩 추가로 그린다
+      const afterOne = Math.min(total, PAGE_SIZE * 2);
+      await page.click('#load-more');
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, afterOne);
+      const oneMore = await page.evaluate(() => ({
+        count: document.querySelectorAll('.card').length,
+        text: document.getElementById('load-more').textContent.trim(),
+        label: document.getElementById('load-more').getAttribute('aria-label'),
+      }));
+      check(
+        `[${viewport.name}] 더 보기 1회 → ${afterOne}개`,
+        oneMore.count === afterOne && oneMore.text === `더 보기 (${total - afterOne}개 남음)` && /남음/.test(oneMore.label),
+        `${oneMore.count}개 · "${oneMore.text}"`,
+      );
+
+      // 끝까지 누르면 전체가 그려지고 버튼이 사라진다
+      let guard = 0;
+      while (guard++ < 40) {
+        const hidden = await page.$eval('#load-more', (node) => node.hidden);
+        if (hidden) break;
+        await page.click('#load-more');
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      }
+      const allLoad = await page.evaluate(() => ({
+        count: document.querySelectorAll('.card').length,
+        hidden: document.getElementById('load-more').hidden,
+      }));
+      check(
+        `[${viewport.name}] 끝까지 더 보기 → 전체 ${total}개·버튼 사라짐`,
+        allLoad.count === total && allLoad.hidden,
+        `${allLoad.count}개 · 버튼 ${allLoad.hidden ? '숨김' : '남음'}`,
+      );
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
+      check(`[${viewport.name}] 새로고침하면 다시 ${rendered}개`, true, `${rendered}개`);
+
       // 세부 필터 기본값: 접힌 상태 + 배지 없음
       const collapsed = await page.evaluate(() => {
         const toggle = document.getElementById('filter-toggle');
@@ -434,17 +498,20 @@ async function main() {
       );
 
       // 카테고리 전환: 전체 → 프론트엔드
+      const frontendPage = firstPageCount(frontendNames.length);
       await page.click('#tabs .tab[data-category="frontend"]');
       await page.waitForFunction(
         (expected) => document.querySelectorAll('.card').length === expected,
         {},
-        frontendNames.length,
+        frontendPage,
       );
       const frontendTitles = await page.$$eval('.card-title', (nodes) => nodes.map((node) => node.textContent.trim()));
       const frontendCount = await page.$eval('#count', (node) => node.textContent.trim());
       check(
-        `[${viewport.name}] 카테고리 프론트엔드 전환`,
-        frontendTitles.sort().join(',') === [...frontendNames].sort().join(',') && /\d+개 표시/.test(frontendCount),
+        `[${viewport.name}] 카테고리 프론트엔드 전환(첫 ${frontendPage}개)`,
+        frontendTitles.sort().join(',') === [...firstPage(frontendNames)].sort().join(',') &&
+          /\d+개 표시/.test(frontendCount) &&
+          new RegExp(`조건에 맞는 ${frontendNames.length}개`).test(frontendCount),
         `${frontendTitles.length}개 · ${frontendCount}`,
       );
       const frontendShot = await page.evaluate(() => {
@@ -465,7 +532,7 @@ async function main() {
       await screenshot(page, path.join(OUT_DIR, `category-frontend-${viewport.name}.png`), viewport);
       // 마지막 카테고리도 스크롤로 닿는지 + 초기화
       await page.click('#reset');
-      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, total);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
       const lastTabVisible = await page.evaluate(() => {
         const tabs = [...document.querySelectorAll('#tabs .tab')];
         const track = document.getElementById('tabs');
@@ -528,11 +595,12 @@ async function main() {
       // 검색
       await page.click('#q');
       await page.type('#q', '차트', { delay: 20 });
-      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, chartHits.length);
+      const chartPage = firstPageCount(chartHits.length);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, chartPage);
       const searchHits = await page.$$eval('.card-title', (titles) => titles.map((t) => t.textContent.trim()));
       check(
         `[${viewport.name}] 검색 "차트"`,
-        chartHits.length > 0 && searchHits.sort().join(',') === [...chartHits].sort().join(','),
+        chartHits.length > 0 && searchHits.sort().join(',') === [...firstPage(chartHits)].sort().join(','),
         `${searchHits.length}개 · ${searchHits.join(', ')}`,
       );
       await screenshot(page, path.join(OUT_DIR, `search-${viewport.name}.png`), viewport);
@@ -541,30 +609,61 @@ async function main() {
         input.value = '';
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
-      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, total);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
+
+      // 토큰 검색: 'k-ui-ux' → 'k-style-ui-ux'가 바로 나온다
+      const tokenHits = expectedNames(repos, { query: 'k-ui-ux' });
+      await page.click('#q');
+      await page.type('#q', 'k-ui-ux', { delay: 20 });
+      await page.waitForFunction(
+        (expected) => document.querySelectorAll('.card').length === expected,
+        {},
+        firstPageCount(tokenHits.length),
+      );
+      const tokenTitles = await page.$$eval('.card-title', (titles) => titles.map((t) => t.textContent.trim()));
+      check(
+        `[${viewport.name}] 토큰 검색 "k-ui-ux" → k-style-ui-ux`,
+        tokenHits.includes('k-style-ui-ux') &&
+          tokenTitles.includes('k-style-ui-ux') &&
+          tokenTitles.sort().join(',') === [...firstPage(tokenHits)].sort().join(','),
+        `${tokenTitles.length}개 · ${tokenTitles.join(', ')}`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `search-token-${viewport.name}.png`), viewport);
+      await page.evaluate(() => {
+        const input = document.getElementById('q');
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
 
       // 필터: Docker
+      const dockerPage = firstPageCount(dockerCount);
       await page.click('.chip[data-filter="docker"]');
-      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, dockerCount);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, dockerPage);
       const dockerHits = await page.$$eval('.card-title', (titles) => titles.map((t) => t.textContent.trim()));
-      check(`[${viewport.name}] Docker 필터`, dockerHits.length === dockerCount, `${dockerHits.length}개`);
+      check(`[${viewport.name}] Docker 필터`, dockerHits.length === dockerPage, `${dockerHits.length}개`);
       await screenshot(page, path.join(OUT_DIR, `filter-docker-${viewport.name}.png`), viewport);
 
       // 필터: 상업 무료 + 한국어 문서 (AND)
+      const commercialPage = firstPageCount(commercialKorean);
       await page.click('.chip[data-filter="docker"]');
       await page.click('.chip[data-filter="commercial"]');
       await page.click('.chip[data-filter="korean"]');
       await page.waitForFunction(
         (expected) => document.querySelectorAll('.card').length === expected,
         {},
-        commercialKorean,
+        commercialPage,
       );
       const andCount = await page.$$eval('.card', (nodes) => nodes.length);
-      check(`[${viewport.name}] 상업 무료 ∩ 한국어 문서`, andCount === commercialKorean, `${andCount}개`);
+      check(
+        `[${viewport.name}] 상업 무료 ∩ 한국어 문서`,
+        andCount === commercialPage && /조건에 맞는 \d+개/.test(await page.$eval('#count', (node) => node.textContent)),
+        `${andCount}개 표시`,
+      );
 
       // 필터 해제 + 정렬
       await page.click('#reset');
-      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, total);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
       await page.select('#sort', 'updated');
       await page.waitForFunction(
         (expected) => document.querySelector('.card-title')?.textContent.trim() === expected,

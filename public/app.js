@@ -1,4 +1,14 @@
-import { FILTERS, SORTS, selectRepos, formatStars, formatDate } from './lib/filter.mjs';
+import {
+  FILTERS,
+  SORTS,
+  PAGE_SIZE,
+  selectRepos,
+  pageCount,
+  remainingCount,
+  nextVisibleCount,
+  formatStars,
+  formatDate,
+} from './lib/filter.mjs';
 
 const REPO_URL = 'https://github.com/YunhuPark/k-oss-directory';
 const ISSUE_NEW = `${REPO_URL}/issues/new`;
@@ -23,6 +33,9 @@ const state = {
   filters: new Set(),
   sort: 'stars',
   filterOpen: false,
+  // 지금까지 펼친 카드 수. 조건이 바뀌면 PAGE_SIZE로 돌아간다.
+  visible: PAGE_SIZE,
+  signature: '',
 };
 
 const el = {
@@ -38,6 +51,8 @@ const el = {
   reset: document.getElementById('reset'),
   resetEmpty: document.getElementById('reset-empty'),
   grid: document.getElementById('grid'),
+  more: document.getElementById('load-more'),
+  moreWrap: document.getElementById('load-more-wrap'),
   empty: document.getElementById('empty'),
   loadError: document.getElementById('load-error'),
   updated: document.getElementById('updated'),
@@ -231,6 +246,12 @@ function logoTile(repo, extraClass = '') {
 }
 
 function cardHtml(repo) {
+  // 만든 곳과 GitHub 계정이 같으면(글로벌 개인·조직 저장소) 한 번만 보여 준다.
+  const sourceLine =
+    repo.vendor && String(repo.vendor).toLowerCase() !== String(repo.owner).toLowerCase()
+      ? `${repo.vendor} · ${repo.owner}`
+      : repo.owner || repo.vendor;
+
   const meta = [
     ['LICENSE', repo.license ?? '미지정'],
     ['UPDATED', repo.pushedAt ? formatDate(repo.pushedAt) : '—'],
@@ -246,7 +267,7 @@ function cardHtml(repo) {
         ${logoTile(repo)}
         <div class="card-heading">
           <h3 class="card-title">${escapeHtml(repo.name)}</h3>
-          <p class="card-vendor">${escapeHtml(repo.vendor)} · ${escapeHtml(repo.owner)}</p>
+          <p class="card-vendor">${escapeHtml(sourceLine)}</p>
         </div>
         <span class="card-stars" title="GitHub 스타">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.6l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.4l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
@@ -260,6 +281,13 @@ function cardHtml(repo) {
 }
 
 function render() {
+  // 조건이 바뀌면 처음 24개부터 다시 보여 준다(정렬 포함).
+  const signature = JSON.stringify([state.query, state.category, [...state.filters].sort(), state.sort]);
+  if (signature !== state.signature) {
+    state.signature = signature;
+    state.visible = PAGE_SIZE;
+  }
+
   const visible = selectRepos(state.repos, {
     query: state.query,
     category: state.category,
@@ -267,12 +295,25 @@ function render() {
     sort: state.sort,
   });
 
-  el.grid.innerHTML = visible.map((repo) => cardHtml(repo)).join('');
-  el.empty.hidden = visible.length !== 0;
-  el.grid.hidden = visible.length === 0;
+  // 24개씩만 그리고, 남은 카드는 '더 보기' 버튼으로 이어 붙인다.
+  const shown = visible.slice(0, pageCount(visible.length, state.visible));
+  const remaining = remainingCount(visible.length, state.visible);
 
-  const parts = [`<b>${visible.length}</b>개 표시`];
-  if (visible.length !== state.repos.length) parts.push(`전체 ${state.repos.length}개`);
+  el.grid.innerHTML = shown.map((repo) => cardHtml(repo)).join('');
+  el.grid.hidden = visible.length === 0;
+  el.empty.hidden = visible.length !== 0;
+
+  el.more.hidden = remaining === 0;
+  if (remaining > 0) {
+    el.more.textContent = `더 보기 (${remaining}개 남음)`;
+    el.more.setAttribute('aria-label', `더 보기, ${remaining}개 남음`);
+  } else {
+    el.more.textContent = '';
+  }
+
+  const parts = [`<b>${shown.length}</b>개 표시`];
+  if (visible.length !== state.repos.length) parts.push(`조건에 맞는 ${visible.length}개`);
+  else parts.push(`전체 ${state.repos.length}개`);
   el.count.innerHTML = parts.join(' · ');
 
   syncControls();
@@ -482,6 +523,13 @@ function bindEvents() {
   el.grid.addEventListener('click', (event) => {
     const card = event.target.closest('.card');
     if (card) openDetail(card.dataset.repo);
+  });
+
+  // '더 보기': 한 번에 PAGE_SIZE씩 추가로 그린다.
+  el.more.addEventListener('click', () => {
+    state.visible = nextVisibleCount(state.visible);
+    render();
+    el.more.focus({ preventScroll: true });
   });
 
   el.grid.addEventListener('keydown', (event) => {
