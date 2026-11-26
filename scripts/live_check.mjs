@@ -147,6 +147,9 @@ try {
     );
 
     // MCP · 스킬 필터: 칩을 눌러 배지·개수·해시가 함께 따라오는지
+    // 앞 단계의 'k-ui-ux' 검색을 이어받지 않도록 첫 화면부터 다시 연다.
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.card');
     await page.click('#filter-toggle');
     await page.waitForFunction(() => !document.getElementById('filter-panel').hidden);
     await page.click('.chip[data-filter="mcp"]');
