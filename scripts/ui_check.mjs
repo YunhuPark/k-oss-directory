@@ -275,6 +275,42 @@ async function main() {
         `아이콘 중심 ${searchIcon.iconCy.toFixed(2)} · 입력창 중심 ${searchIcon.inputCy.toFixed(2)} · 상자 중심 ${searchIcon.wrapCy.toFixed(2)} · 오차 ${iconOffset.toFixed(2)}px · 높이 입력창 ${searchIcon.inputHeight}/상자 ${searchIcon.wrapHeight}/정렬 버튼 ${searchIcon.controlHeight} · 아이콘 왼쪽 ${searchIcon.iconLeft}px · ${searchIcon.iconWidth}px`,
       );
 
+      // 검색창·정렬 셀렉트·필터 버튼: 높이를 정확히 같게(오차 1px 이내), 모서리 라운딩도 같게.
+      // 모바일 40px / 560px부터 46px. 정렬·필터는 같은 줄에서 위아래로 어긋나지 않아야 한다.
+      const sizeMatch = await page.evaluate(() => {
+        const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+        const radius = (selector) => parseFloat(getComputedStyle(document.querySelector(selector)).borderTopLeftRadius);
+        const input = box('#q');
+        const select = box('#sort');
+        const toggle = box('#filter-toggle');
+        return {
+          input: { height: input.height, radius: radius('#q'), top: input.top },
+          select: { height: select.height, radius: radius('#sort'), top: select.top },
+          toggle: { height: toggle.height, radius: radius('#filter-toggle'), top: toggle.top },
+          viewportWidth: window.innerWidth,
+        };
+      });
+      const expectedHeight = sizeMatch.viewportWidth < 560 ? 40 : 46;
+      const heightSpread =
+        Math.max(sizeMatch.input.height, sizeMatch.select.height, sizeMatch.toggle.height) -
+        Math.min(sizeMatch.input.height, sizeMatch.select.height, sizeMatch.toggle.height);
+      const radiusSpread =
+        Math.max(sizeMatch.input.radius, sizeMatch.select.radius, sizeMatch.toggle.radius) -
+        Math.min(sizeMatch.input.radius, sizeMatch.select.radius, sizeMatch.toggle.radius);
+      check(
+        `[${viewport.name}] 검색창·정렬·필터 박스 높이 통일(${expectedHeight}px)`,
+        heightSpread <= 1 &&
+          [sizeMatch.input.height, sizeMatch.select.height, sizeMatch.toggle.height].every(
+            (height) => Math.abs(height - expectedHeight) <= 1,
+          ),
+        `검색창 ${sizeMatch.input.height} · 정렬 ${sizeMatch.select.height} · 필터 ${sizeMatch.toggle.height} (기대 ${expectedHeight}px · 편차 ${heightSpread}px)`,
+      );
+      check(
+        `[${viewport.name}] 검색창·정렬·필터 모서리·세로 정렬 일치`,
+        radiusSpread <= 0.5 && Math.abs(sizeMatch.select.top - sizeMatch.toggle.top) <= 1,
+        `라운딩 ${sizeMatch.input.radius}/${sizeMatch.select.radius}/${sizeMatch.toggle.radius} · 정렬·필터 윗변 ${sizeMatch.select.top.toFixed(1)}/${sizeMatch.toggle.top.toFixed(1)}`,
+      );
+
       const overflow = await page.evaluate(() => {
         const doc = document.documentElement;
         const limit = doc.clientWidth;
