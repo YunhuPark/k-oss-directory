@@ -240,6 +240,41 @@ async function main() {
         `제목줄→요약 ${spacing.topToSummary} · 요약→배지 ${spacing.summaryToBadges} · 배지→메타 ${spacing.badgesToMeta}`,
       );
 
+      // 검색 돋보기 아이콘: 감싸는 상자와 입력창의 세로 중심에서 1px 안쪽, 입력창 밖으로 나가지 않아야 한다.
+      // (상자가 입력창보다 높아지면 top:50%만으로는 아이콘이 아래로 처진다 — 회귀 방지)
+      const searchIcon = await page.evaluate(() => {
+        const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+        const icon = rect('.search-icon');
+        const input = rect('#q');
+        const wrap = rect('.search');
+        const center = (box) => box.top + box.height / 2;
+        return {
+          iconCy: center(icon),
+          inputCy: center(input),
+          wrapCy: center(wrap),
+          iconTop: icon.top,
+          iconBottom: icon.bottom,
+          inputTop: input.top,
+          inputBottom: input.bottom,
+          iconLeft: icon.left - wrap.left,
+          iconWidth: icon.width,
+          inputHeight: input.height,
+          wrapHeight: wrap.height,
+          controlHeight: rect('#sort').height,
+        };
+      });
+      const iconOffset = Math.max(
+        Math.abs(searchIcon.iconCy - searchIcon.inputCy),
+        Math.abs(searchIcon.iconCy - searchIcon.wrapCy),
+      );
+      check(
+        `[${viewport.name}] 검색 돋보기 아이콘 세로 중앙 정렬`,
+        iconOffset <= 1 &&
+          searchIcon.iconTop >= searchIcon.inputTop - 1 &&
+          searchIcon.iconBottom <= searchIcon.inputBottom + 1,
+        `아이콘 중심 ${searchIcon.iconCy.toFixed(2)} · 입력창 중심 ${searchIcon.inputCy.toFixed(2)} · 상자 중심 ${searchIcon.wrapCy.toFixed(2)} · 오차 ${iconOffset.toFixed(2)}px · 높이 입력창 ${searchIcon.inputHeight}/상자 ${searchIcon.wrapHeight}/정렬 버튼 ${searchIcon.controlHeight} · 아이콘 왼쪽 ${searchIcon.iconLeft}px · ${searchIcon.iconWidth}px`,
+      );
+
       const overflow = await page.evaluate(() => {
         const doc = document.documentElement;
         const limit = doc.clientWidth;
