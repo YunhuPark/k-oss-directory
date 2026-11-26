@@ -215,6 +215,12 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 판정 집계(동기화 결과): 한국어 문서 7개 · 상업 무료 15개 · Docker 3개 · 최근 3개월 13개 · 보관됨 2개(`nhn/tui.editor`, `kakaobrain/pororo`).
 
+**1차 확장 완료 — 25개 (2026-11-26).** `@YunhuPark` 공개 저장소 31개를 전수 조사해 9개를 추가했다.
+`shorts-studio`, `topic-ai`, `yt-growth-coach`, `trackpad-controller`, `smart-travel-calc`, `onetool`, `hand-cube`, `Dr-Strange-AR`, `aether-flow`(모두 MIT LICENSE 파일 확인).
+판정 집계: 한국어 문서 14 · 상업 무료 24 · Docker 5 · 최근 3개월 22.
+
+> 균형 주의: 직접 만든 저장소가 11/25(44%)다. 다음 배치부터는 국내 조직(토스·네이버·카카오·당근·라인·NHN·우아한형제들 등) 저장소로 채워 "국산 오픈소스 큐레이션"이라는 성격을 지킨다.
+
 **2차 14개(검증 후 추가, 합계 30개 → PRD의 "초기 30개")**
 
 아래는 후보군이며 **투입 전 `gh api repos/{owner}/{repo}`로 실존·라이선스·최근 푸시를 반드시 재검증**한다(추측 금지).

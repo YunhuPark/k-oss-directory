@@ -7,7 +7,11 @@
       "vendor": "토스",
       "category": "frontend",
       "summary": "lodash를 대체하는 모던 JS 유틸리티 모음. 같은 일을 2~3배 빠르게, 번들 크기는 최대 97% 작게 한다.",
-      "tags": ["TypeScript", "유틸리티", "lodash 대체"],
+      "tags": [
+        "TypeScript",
+        "유틸리티",
+        "lodash 대체"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -15,7 +19,11 @@
       "vendor": "네이버",
       "category": "frontend",
       "summary": "D3 기반 차트 라이브러리. SVG와 Canvas 렌더링을 모두 지원하고, 설정만으로 재사용 가능한 차트를 만든다.",
-      "tags": ["차트", "D3", "시각화"],
+      "tags": [
+        "차트",
+        "D3",
+        "시각화"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -23,7 +31,11 @@
       "vendor": "네이버",
       "category": "frontend",
       "summary": "매일 3천만 명이 쓰는 캐러셀. React·Vue·Angular·Svelte 어디에나 붙는 egjs 컴포넌트.",
-      "tags": ["캐러셀", "UI 컴포넌트", "egjs"],
+      "tags": [
+        "캐러셀",
+        "UI 컴포넌트",
+        "egjs"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -31,7 +43,11 @@
       "vendor": "네이버",
       "category": "frontend",
       "summary": "카드 요소를 무한 그리드로 배치하는 레이아웃 모듈. DOM 재활용으로 수천 개 아이템도 가볍게 유지한다.",
-      "tags": ["무한스크롤", "그리드", "레이아웃"],
+      "tags": [
+        "무한스크롤",
+        "그리드",
+        "레이아웃"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -39,7 +55,11 @@
       "vendor": "당근",
       "category": "frontend",
       "summary": "당근이 만든 모바일 퍼스트 스택 내비게이션 프레임워크. UI를 강제하지 않는 헤드리스 구조에 플러그인으로 기능을 붙인다.",
-      "tags": ["React", "내비게이션", "웹뷰"],
+      "tags": [
+        "React",
+        "내비게이션",
+        "웹뷰"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -47,7 +67,11 @@
       "vendor": "당근",
       "category": "frontend",
       "summary": "당근의 디자인 시스템. React 컴포넌트와 디자인 토큰을 함께 배포해 서비스 화면을 같은 규칙으로 맞춘다.",
-      "tags": ["디자인 시스템", "React", "UI"],
+      "tags": [
+        "디자인 시스템",
+        "React",
+        "UI"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -55,7 +79,11 @@
       "vendor": "토스",
       "category": "frontend",
       "summary": "React Suspense 주변 기능을 한곳에 모은 라이브러리. ErrorBoundary의 shouldCatch, Delay, clientOnly 같은 실무용 도구를 제공한다.",
-      "tags": ["React", "Suspense", "에러바운더리"],
+      "tags": [
+        "React",
+        "Suspense",
+        "에러바운더리"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -63,7 +91,11 @@
       "vendor": "토스",
       "category": "frontend",
       "summary": "React에서 모달·토스트 같은 오버레이를 훅으로 열고 닫는 라이브러리. 오버레이 상태 관리를 컴포넌트 밖으로 뺀다.",
-      "tags": ["React", "모달", "UI"],
+      "tags": [
+        "React",
+        "모달",
+        "UI"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -71,7 +103,11 @@
       "vendor": "라인",
       "category": "backend",
       "summary": "Netty 계열에서 출발한 마이크로서비스 프레임워크. gRPC·Thrift·REST를 한 서버에서 함께 처리한다.",
-      "tags": ["Java", "gRPC", "마이크로서비스"],
+      "tags": [
+        "Java",
+        "gRPC",
+        "마이크로서비스"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -79,7 +115,11 @@
       "vendor": "라인",
       "category": "backend",
       "summary": "Git으로 버전 관리하는 설정 저장소. ZooKeeper와 HTTP/2 위에서 설정을 고가용성으로 배포한다.",
-      "tags": ["Java", "설정 관리", "인프라"],
+      "tags": [
+        "Java",
+        "설정 관리",
+        "인프라"
+      ],
       "docker": true,
       "addedAt": "2026-11-26"
     },
@@ -88,7 +128,11 @@
       "vendor": "카카오",
       "category": "ai",
       "summary": "카카오 한글 형태소 분석기 3. 신조어·오타에 강한 분석과 C++/Python API, Docker 빌드를 함께 제공한다.",
-      "tags": ["NLP", "형태소 분석", "Python"],
+      "tags": [
+        "NLP",
+        "형태소 분석",
+        "Python"
+      ],
       "docker": true,
       "addedAt": "2026-11-26"
     },
@@ -97,7 +141,11 @@
       "vendor": "카카오브레인",
       "category": "ai",
       "summary": "자연어 처리 모델을 한 줄로 호출하는 툴킷. 문장 분류·개체명 인식·번역 등을 같은 인터페이스로 쓴다. 현재는 보관된 저장소다.",
-      "tags": ["NLP", "딥러닝", "Python"],
+      "tags": [
+        "NLP",
+        "딥러닝",
+        "Python"
+      ],
       "docker": true,
       "addedAt": "2026-11-26"
     },
@@ -106,7 +154,11 @@
       "vendor": "NHN",
       "category": "tool",
       "summary": "GFM 표준을 따르는 마크다운 WYSIWYG 에디터. 차트·UML 확장을 붙일 수 있고 지금도 많은 국내 서비스가 쓴다.",
-      "tags": ["마크다운", "에디터", "JavaScript"],
+      "tags": [
+        "마크다운",
+        "에디터",
+        "JavaScript"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -114,7 +166,11 @@
       "vendor": "개인 개발자",
       "category": "learn",
       "summary": "신입 개발자 기술 면접 대비 백과사전. 전공 지식·알고리즘·CS·언어별 정리를 한국어로 모아 두었다.",
-      "tags": ["면접", "CS", "학습"],
+      "tags": [
+        "면접",
+        "CS",
+        "학습"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -122,7 +178,11 @@
       "vendor": "개인 개발자",
       "category": "tool",
       "summary": "GitHub Actions에서 Vercel 배포를 실행하는 액션. Vercel 빌더 없이도 배포 워크플로를 구성할 수 있다.",
-      "tags": ["CI/CD", "Vercel", "GitHub Actions"],
+      "tags": [
+        "CI/CD",
+        "Vercel",
+        "GitHub Actions"
+      ],
       "addedAt": "2026-11-26"
     },
     {
@@ -130,7 +190,127 @@
       "vendor": "직접 만듦",
       "category": "tool",
       "summary": "AI 에이전트가 쓴 코드를 곧바로 반영하지 않고, 위험도 분석·독립 리뷰·테스트·사람 승인을 통과한 변경만 새 브랜치에 커밋하는 도구. MCP 서버와 CLI, 읽기 전용 대시보드를 제공한다.",
-      "tags": ["AI 에이전트", "코드 리뷰", "MCP"],
+      "tags": [
+        "AI 에이전트",
+        "코드 리뷰",
+        "MCP"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/shorts-studio",
+      "vendor": "직접 만듦",
+      "category": "ai",
+      "summary": "한 줄 아이디어에서 스토리보드·이미지·음성·자막·배경음악을 거쳐 9:16 쇼츠 영상까지 만드는 파이썬 파이프라인. CLI·라이브러리·대시보드를 함께 제공하고, 유료 API 비용은 사용자별 한도로 막는다.",
+      "tags": [
+        "쇼츠",
+        "영상 생성",
+        "Python",
+        "FastAPI"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/topic-ai",
+      "vendor": "직접 만듦",
+      "category": "ai",
+      "summary": "Notion·Slack·Drive·GitHub·GitLab에 흩어진 사내 지식을 한곳에서 검색하고 요약·의사결정 흐름·액션 아이템을 뽑는 RAG 어시스턴트. FastAPI·React·Chroma로 직접 띄우고 OpenAI와 Ollama를 골라 쓴다.",
+      "tags": [
+        "RAG",
+        "사내 검색",
+        "FastAPI",
+        "LLM"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/yt-growth-coach",
+      "vendor": "직접 만듦",
+      "category": "tool",
+      "summary": "유튜브 영상을 자동으로 편집(무음·군말 컷, 가로→세로 프레임, 자막·효과음)하고 채널 지표로 다음 영상을 추천하는 로컬 우선 웹 앱. 영상은 내 PC에서 처리하고 Docker 한 줄로 띄운다.",
+      "tags": [
+        "영상 편집",
+        "YouTube",
+        "Next.js",
+        "Docker"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/trackpad-controller",
+      "vendor": "직접 만듦",
+      "category": "tool",
+      "summary": "노트북 트랙패드를 MIDI·키보드 연주면으로 바꾸는 Windows 앱. 존 그리드·4개 레이어·루프 녹음·스케일 고정을 지원하고 서명 검증 가능한 설치 파일을 릴리스로 배포한다.",
+      "tags": [
+        "MIDI",
+        "Windows",
+        "전자음악",
+        "TypeScript"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/smart-travel-calc",
+      "vendor": "직접 만듦",
+      "category": "tool",
+      "summary": "카톡에 적은 메모나 영수증 사진을 넣으면 AI가 지출 내역·화폐·카테고리를 정리해 주는 여행 정산 PWA. 환율 오프라인 캐시와 N빵 계산, 카테고리 통계를 제공한다.",
+      "tags": [
+        "여행 정산",
+        "PWA",
+        "Gemini",
+        "Next.js"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/onetool",
+      "vendor": "직접 만듦",
+      "category": "tool",
+      "summary": "로그인·광고 없이 브라우저에서 바로 쓰는 초경량 웹 도구 모음. 인스타 맞팔 판독·할인율 계산·칼퇴 계산기 등 7종을 순수 HTML/CSS/JS로 구현해 설치 없이 배포된다.",
+      "tags": [
+        "웹 도구",
+        "Vanilla JS",
+        "모바일 우선"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/hand-cube",
+      "vendor": "직접 만듦",
+      "category": "frontend",
+      "summary": "유리 큐브 안에서 65,536개 파티클이 도는 WebGL 시뮬레이션. GPGPU 물리와 PBR 유리·블룸·갓레이를 조합하고 웹캠 손 추적과 터치로 큐브를 조작한다.",
+      "tags": [
+        "Three.js",
+        "WebGL",
+        "GPGPU",
+        "MediaPipe"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/Dr-Strange-AR",
+      "vendor": "직접 만듦",
+      "category": "frontend",
+      "summary": "웹캠 손 제스처로 마법진과 슬링 링 포탈을 만드는 Web AR 데모. MediaPipe 손 추적으로 제스처를 읽고 Three.js GPU 파티클·셰이더·블룸으로 이펙트를 그린다.",
+      "tags": [
+        "Three.js",
+        "Web AR",
+        "MediaPipe",
+        "셰이더"
+      ],
+      "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "YunhuPark/aether-flow",
+      "vendor": "직접 만듦",
+      "category": "frontend",
+      "summary": "손동작으로 수백만 파티클을 조작하는 React + Three.js 3D 인터랙션. 손 모양에 따라 중력 반전·소용돌이·반발력이 달라지고 토성·은하·DNA 형상으로 변신한다.",
+      "tags": [
+        "React",
+        "Three.js",
+        "MediaPipe",
+        "3D"
+      ],
       "addedAt": "2026-11-26"
     }
   ]

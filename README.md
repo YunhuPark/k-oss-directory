@@ -18,12 +18,12 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
   <img src="docs/screenshots/detail-1280.png" alt="상세 모달" width="520">
 </p>
 
-## 지금 수록된 저장소 (16개, 2026-11-26 GitHub API로 검증)
+## 지금 수록된 저장소 (25개, 2026-11-26 GitHub API로 검증)
 
 | 저장소 | 만든 곳 | 분류 | ★ | 라이선스 |
 |---|---|---|---|---|
 | [nhn/tui.editor](https://github.com/nhn/tui.editor) | NHN | 개발 도구 | 18.0k | MIT |
-| [gyoogle/tech-interview-for-developer](https://github.com/gyoogle/tech-interview-for-developer) | 개인 | 학습·자료 | 17.7k | MIT |
+| [gyoogle/tech-interview-for-developer](https://github.com/gyoogle/tech-interview-for-developer) | 개인 개발자 | 학습·자료 | 17.7k | MIT |
 | [toss/es-toolkit](https://github.com/toss/es-toolkit) | 토스 | 프론트엔드 | 11.4k | MIT |
 | [naver/billboard.js](https://github.com/naver/billboard.js) | 네이버 | 프론트엔드 | 6.0k | MIT |
 | [line/armeria](https://github.com/line/armeria) | 라인 | 백엔드·인프라 | 5.2k | Apache-2.0 |
@@ -34,10 +34,19 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
 | [daangn/seed-design](https://github.com/daangn/seed-design) | 당근 | 프론트엔드 | 1.2k | Apache-2.0 |
 | [toss/suspensive](https://github.com/toss/suspensive) | 토스 | 프론트엔드 | 1.1k | MIT |
 | [daangn/stackflow](https://github.com/daangn/stackflow) | 당근 | 프론트엔드 | 1.0k | MIT |
-| [amondnet/vercel-action](https://github.com/amondnet/vercel-action) | 개인 | 개발 도구 | 764 | MIT |
+| [amondnet/vercel-action](https://github.com/amondnet/vercel-action) | 개인 개발자 | 개발 도구 | 764 | MIT |
 | [toss/overlay-kit](https://github.com/toss/overlay-kit) | 토스 | 프론트엔드 | 739 | MIT |
 | [line/centraldogma](https://github.com/line/centraldogma) | 라인 | 백엔드·인프라 | 675 | Apache-2.0 |
+| [YunhuPark/trackpad-controller](https://github.com/YunhuPark/trackpad-controller) | 직접 만듦 | 개발 도구 | 1 | MIT |
+| [YunhuPark/onetool](https://github.com/YunhuPark/onetool) | 직접 만듦 | 개발 도구 | 1 | MIT |
 | [YunhuPark/devorch](https://github.com/YunhuPark/devorch) | 직접 만듦 | 개발 도구 | 0 | 미지정 |
+| [YunhuPark/shorts-studio](https://github.com/YunhuPark/shorts-studio) | 직접 만듦 | AI·데이터 | 0 | MIT |
+| [YunhuPark/topic-ai](https://github.com/YunhuPark/topic-ai) | 직접 만듦 | AI·데이터 | 0 | MIT |
+| [YunhuPark/yt-growth-coach](https://github.com/YunhuPark/yt-growth-coach) | 직접 만듦 | 개발 도구 | 0 | MIT |
+| [YunhuPark/smart-travel-calc](https://github.com/YunhuPark/smart-travel-calc) | 직접 만듦 | 개발 도구 | 0 | MIT |
+| [YunhuPark/hand-cube](https://github.com/YunhuPark/hand-cube) | 직접 만듦 | 프론트엔드 | 0 | MIT |
+| [YunhuPark/Dr-Strange-AR](https://github.com/YunhuPark/Dr-Strange-AR) | 직접 만듦 | 프론트엔드 | 0 | MIT |
+| [YunhuPark/aether-flow](https://github.com/YunhuPark/aether-flow) | 직접 만듦 | 프론트엔드 | 0 | MIT |
 
 > 별점 수치는 `public/data/catalog.json`이 매일 자동 갱신됩니다. 위 표는 작성 시점 기준입니다.
 
@@ -137,7 +146,7 @@ PUPPETEER_PATH=/path/to/puppeteer node scripts/ui_check.mjs --out downloads/k-os
 
 ## 로드맵
 
-- [ ] 시드 30개로 확장 (PRD §9 후보군 검증 후 추가)
+- [ ] 시드 30개로 확장 (PRD §9 후보군 검증 후 추가 — 2026-11-26 현재 25개)
 - [ ] 태그 클릭 탐색, 상세 정적 페이지(`/r/{owner}/{repo}`), OG 이미지
 - [ ] 주간 인기순 (스타 증가량 스냅샷)
 
