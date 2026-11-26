@@ -31034,7 +31034,7 @@
       "owner": "Anorov",
       "vendor": "Anorov",
       "category": "tool",
-      "summary": "Cloudflare 안티봇 페이지를 우회하는 파이썬 모듈.",
+      "summary": "Cloudflare 안티봇 페이지를 우회하는 파이썬 모듈. 지금 쓰이는 cloudscraper의 원조 구현이다.",
       "tags": [
         "Python",
         "anti-bot-page",
