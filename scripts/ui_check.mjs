@@ -118,13 +118,17 @@ async function main() {
       const page = await browser.newPage();
       await page.setViewport(viewport);
       const consoleErrors = [];
+      const imageFailures = [];
       page.on('console', (message) => {
         if (message.type() === 'error') consoleErrors.push(message.text());
+      });
+      page.on('requestfailed', (request) => {
+        if (request.resourceType() === 'image') imageFailures.push(`${request.url()} ${request.failure()?.errorText ?? ''}`);
       });
       page.on('pageerror', (error) => consoleErrors.push(String(error)));
 
       await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
-      await page.goto(base, { waitUntil: 'networkidle0' });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.card');
 
       // 앞선 뷰포트 검사에서 남은 테마가 있으면 라이트로 되돌린다.
@@ -170,6 +174,69 @@ async function main() {
         logos.tiles === rendered && logos.avatars === rendered && logos.initials === rendered,
         `타일 ${logos.tiles} · 이미지 ${logos.avatars} · 이니셜 ${logos.initials}`,
       );
+
+      // 아바타가 실제로 그려지는지: 숨은 <img>만 남고 src가 비면 이니셜(S·M·O)만 보인다(회귀 방지).
+      const countAvatars = () =>
+        page.evaluate(() => {
+          const inView = (node) => {
+            const box = node.getBoundingClientRect();
+            return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
+          };
+          const tiles = [...document.querySelectorAll('.card .card-logo')].filter(inView);
+          const images = tiles.map((tile) => tile.querySelector('img')).filter(Boolean);
+          return {
+            inView: tiles.length,
+            images: images.length,
+            loaded: images.filter((image) => image.complete && image.naturalWidth > 0 && !image.hidden).length,
+            withSrc: [...document.querySelectorAll('.card .card-logo img')].filter((image) => image.getAttribute('src')).length,
+          };
+        });
+      await page
+        .waitForFunction(
+          () => {
+            const inView = (node) => {
+              const box = node.getBoundingClientRect();
+              return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
+            };
+            const images = [...document.querySelectorAll('.card .card-logo')]
+              .filter(inView)
+              .map((tile) => tile.querySelector('img'))
+              .filter(Boolean);
+            if (images.length === 0) return false;
+            const ready = images.filter((image) => image.complete && image.naturalWidth > 0);
+            return ready.length >= Math.ceil(images.length * 0.8);
+          },
+          { timeout: 20000 },
+        )
+        .catch(() => null);
+      const avatars = await countAvatars();
+      check(
+        `[${viewport.name}] 첫 화면 보이는 아바타 실제 로드`,
+        avatars.inView > 0 && avatars.loaded >= Math.ceil(avatars.images * 0.8),
+        `화면 안 타일 ${avatars.inView} · 로드 ${avatars.loaded}/${avatars.images} · src ${avatars.withSrc}개`,
+      );
+
+      // 스크롤로 새로 나타난 카드도 아바타가 따라 붙는다(지연 로딩 경로).
+      const srcBeforeScroll = avatars.withSrc;
+      await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
+      await page
+        .waitForFunction(
+          (before) =>
+            [...document.querySelectorAll('.card .card-logo img')].filter((image) => image.getAttribute('src')).length > before,
+          { timeout: 15000 },
+          srcBeforeScroll,
+        )
+        .catch(() => null);
+      await settle(page, 600);
+      const scrolled = await countAvatars();
+      check(
+        `[${viewport.name}] 스크롤한 카드 아바타도 로드`,
+        scrolled.withSrc > srcBeforeScroll && scrolled.loaded >= Math.ceil(scrolled.images * 0.8),
+        `src ${srcBeforeScroll} → ${scrolled.withSrc}개 · 화면 안 로드 ${scrolled.loaded}/${scrolled.images}`,
+      );
+      await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+      await page.waitForFunction(() => window.scrollY === 0, { timeout: 5000 }).catch(() => null);
+      await settle(page, 150);
 
       const topBand = await page.evaluate(() => {
         const hero = document.querySelector('.hero');
@@ -407,13 +474,16 @@ async function main() {
         `${oneMore.count}개 · "${oneMore.text}"`,
       );
 
-      // 끝까지 누르면 전체가 그려지고 버튼이 사라진다
+      // 끝까지 누르면 전체가 그려지고 버튼이 사라진다.
+      // 여기서는 클릭을 스크립트로 보낸다: 브라우저 클릭은 매번 버튼까지 스크롤해 1,321장의 아바타를
+      // 몇 초 안에 몰아서 받게 만들어(실사용과 다른 부하·GitHub 요청 한도) 검증 대상을 흐린다.
+      // 화면 이동에 따른 아바타 로딩은 위의 '스크롤한 카드 아바타도 로드' 항목이 따로 본다.
       let guard = 0;
       // 1,300여 개면 클릭 56번. 여유를 두고 넉넉히 돌린다.
       while (guard++ < Math.ceil(total / PAGE_SIZE) + 10) {
         const hidden = await page.$eval('#load-more', (node) => node.hidden);
         if (hidden) break;
-        await page.click('#load-more');
+        await page.evaluate(() => document.getElementById('load-more').click());
         await new Promise((resolve) => setTimeout(resolve, 30));
       }
       const allLoad = await page.evaluate(() => ({
@@ -425,7 +495,13 @@ async function main() {
         allLoad.count === total && allLoad.hidden,
         `${allLoad.count}개 · 버튼 ${allLoad.hidden ? '숨김' : '남음'}`,
       );
-      await page.reload({ waitUntil: 'networkidle0' });
+      // 1,321개를 펼쳐도 아바타 요청이 터지지 않아야 한다(ERR_INSUFFICIENT_RESOURCES 회귀 방지).
+      check(
+        `[${viewport.name}] 끝까지 펼쳐도 이미지 요청 실패 없음`,
+        imageFailures.length === 0 && consoleErrors.length === 0,
+        imageFailures.length === 0 ? '실패 0건' : `${imageFailures.length}건: ${imageFailures.slice(0, 3).join(' | ')}`,
+      );
+      await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, rendered);
       check(`[${viewport.name}] 새로고침하면 다시 ${rendered}개`, true, `${rendered}개`);
 
@@ -797,7 +873,7 @@ async function main() {
       // 색 전환 트랜지션이 끝난 뒤에 캐처해야 화면이 그대로 보인다.
       await settle(page, 200);
       await screenshot(page, path.join(OUT_DIR, `home-${viewport.name}-dark.png`), viewport);
-      await page.reload({ waitUntil: 'networkidle0' });
+      await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.card');
       const persisted = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
       check(`[${viewport.name}] 다크 모드 유지(새로고침)`, persisted === 'dark', String(persisted));
@@ -998,7 +1074,7 @@ async function main() {
       await openFilters(page);
       await page.click('.chip[data-filter="korean"]');
       const hash = await page.evaluate(() => location.hash);
-      await page.reload({ waitUntil: 'networkidle0' });
+      await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.card');
       const restored = await page.$eval('.chip[data-filter="korean"]', (el) => el.getAttribute('aria-pressed'));
       check(`[${viewport.name}] 해시로 필터 복원`, restored === 'true', hash);

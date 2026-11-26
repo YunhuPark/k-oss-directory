@@ -239,7 +239,8 @@ function cardBadges(repo) {
 
 /** 32px GitHub 아바타. 이미지가 실패하면 아래 이니셜 타일이 그대로 보인다.
  *  1,300개 카드가 한 번에 아바타를 받아 오면 브라우저가 버티지 못한다(ERR_INSUFFICIENT_RESOURCES).
- *  그래서 src는 화면 근처에 왔을 때만 붙이고, 멀어지면 떼어 낸다. */
+ *  그래서 src는 화면 근처에 온 타일 하나씩 붙이고, 한 번 받은 이미지는 그대로 둔다.
+ *  관찰 대상은 display:none이 아닌 .card-logo 타일이다 — 숨은 <img>는 교차 판정이 되지 않는다. */
 function logoTile(repo, extraClass = '') {
   const initials = String(repo.owner || repo.vendor || repo.name || '?').slice(0, 1);
   const src = `https://github.com/${encodeURIComponent(repo.owner || '')}.png?size=64`;
@@ -249,43 +250,75 @@ function logoTile(repo, extraClass = '') {
     </span>`;
 }
 
-/** 아바타 지연 로딩: 보이는 카드만 이미지를 받는다. */
+/** data-src를 src로 옮기고, 그림이 실제로 받아진 뒤에야 이니셜 위로 올린다(빈칸 깜빡임 방지).
+ *  아바타 요청은 한 번에 6장까지만 보낸다: 빠른 스크롤로 수십 장이 한꺼번에 들어와도
+ *  브라우저가 자원 고갈(ERR_INSUFFICIENT_RESOURCES)로 터지지 않게 한다. */
+const LOGO_PARALLEL = 6;
+const logoQueue = [];
+let logoLoading = 0;
+
+function pumpLogos() {
+  while (logoLoading < LOGO_PARALLEL && logoQueue.length) {
+    const image = logoQueue.shift();
+    if (!image.isConnected) continue;
+    const src = image.dataset.src;
+    if (!src) continue;
+    delete image.dataset.src;
+    logoLoading += 1;
+    let timer = 0;
+    const done = () => {
+      clearTimeout(timer);
+      logoLoading -= 1;
+      pumpLogos();
+    };
+    image.addEventListener('load', () => {
+      image.hidden = false;
+      done();
+    }, { once: true });
+    // 응답이 오지 않는 요청(차단·정체)이 자리를 계속 붙잡지 않도록 시간을 제한한다.
+    image.addEventListener('error', done, { once: true });
+    timer = setTimeout(done, 15000);
+    image.src = src;
+  }
+}
+
+function loadLogo(image) {
+  if (!image.dataset.src) return;
+  logoQueue.push(image);
+  pumpLogos();
+}
+
+/** 아바타 지연 로딩: 화면 근처에 온 카드만 이미지를 받고, 받은 뒤에는 관찰을 끝낸다. */
 let logoObserver = null;
-const logoSeen = new WeakSet();
 
 function hydrateLogos(root = document) {
   const images = root.querySelectorAll('.card-logo img[data-src]');
   if (!images.length) return;
   if (typeof IntersectionObserver !== 'function') {
-    for (const image of images) {
-      image.src = image.dataset.src;
-      image.hidden = false;
-    }
+    images.forEach(loadLogo);
     return;
   }
   if (!logoObserver) {
     logoObserver = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const image = entry.target;
-          if (entry.isIntersecting) {
-            if (!image.getAttribute('src') && image.dataset.src) {
-              image.src = image.dataset.src;
-              image.hidden = false;
-            }
-          } else if (image.getAttribute('src')) {
-            image.hidden = true;
-            image.removeAttribute('src');
-          }
+          if (!entry.isIntersecting) continue;
+          logoObserver.unobserve(entry.target);
+          const image = entry.target.querySelector('img[data-src]');
+          if (image) loadLogo(image);
         }
       },
       { rootMargin: '400px 0px' },
     );
   }
   for (const image of images) {
-    if (logoSeen.has(image)) continue;
-    logoSeen.add(image);
-    logoObserver.observe(image);
+    const tile = image.closest('.card-logo');
+    // 상세 모달은 아바타가 한 장뿐이라 기다리지 않고 바로 받는다.
+    if (!tile || tile.closest('dialog')) {
+      loadLogo(image);
+      continue;
+    }
+    logoObserver.observe(tile);
   }
 }
 
@@ -348,6 +381,11 @@ function render({ append = false } = {}) {
     // '더 보기'는 이미 그린 카드를 다시 만들지 않고 새 카드만 뒤에 붙인다.
     el.grid.insertAdjacentHTML('beforeend', visible.slice(state.rendered, shown).map((repo) => cardHtml(repo)).join(''));
   } else {
+    // 카드를 통째로 다시 그리면 사라진 타일은 관찰 목록에서도 지운다.
+    if (logoObserver) {
+      logoObserver.disconnect();
+      logoObserver = null;
+    }
     el.grid.innerHTML = visible.slice(0, shown).map((repo) => cardHtml(repo)).join('');
   }
   state.rendered = shown;

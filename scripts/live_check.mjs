@@ -56,9 +56,48 @@ try {
       if (message.type() === 'error') errors.push(message.text());
     });
 
-    const response = await page.goto(BASE, { waitUntil: 'networkidle0' });
+    const response = await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     check(`[${viewport.name}] HTTP ${response.status()}`, response.status() === 200, BASE);
     await page.waitForSelector('.card');
+
+    // 아바타가 실제로 그려지는지(숨은 <img>만 있고 src가 비면 이니셜만 뜬다 — 회귀 방지)
+    await page
+      .waitForFunction(
+        () => {
+          const inView = (node) => {
+            const box = node.getBoundingClientRect();
+            return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
+          };
+          const images = [...document.querySelectorAll('.card .card-logo')]
+            .filter(inView)
+            .map((tile) => tile.querySelector('img'))
+            .filter(Boolean);
+          if (images.length === 0) return false;
+          const ready = images.filter((image) => image.complete && image.naturalWidth > 0);
+          return ready.length >= Math.ceil(images.length * 0.8);
+        },
+        { timeout: 20000 },
+      )
+      .catch(() => null);
+    const avatars = await page.evaluate(() => {
+      const inView = (node) => {
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
+      };
+      const tiles = [...document.querySelectorAll('.card .card-logo')].filter(inView);
+      const images = tiles.map((tile) => tile.querySelector('img')).filter(Boolean);
+      return {
+        inView: tiles.length,
+        images: images.length,
+        loaded: images.filter((image) => image.complete && image.naturalWidth > 0 && !image.hidden).length,
+        sample: images.slice(0, 2).map((image) => image.getAttribute('src')),
+      };
+    });
+    check(
+      `[${viewport.name}] 첫 화면 아바타 ${avatars.loaded}/${avatars.images} 실제 로드`,
+      avatars.inView > 0 && avatars.loaded >= Math.ceil(avatars.images * 0.8),
+      `화면 안 타일 ${avatars.inView} · ${avatars.sample.filter(Boolean).join(', ')}`,
+    );
 
     const catalog = await page.evaluate(async () => {
       const res = await fetch('./data/catalog.json', { cache: 'no-store' });
@@ -103,9 +142,9 @@ try {
     );
 
     // 첫 화면으로 돌아와 캡처
-    await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.card');
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     await page.screenshot({ path: `${OUT}/${TAG}-${viewport.name}.png` });
 
     const overflow = await page.evaluate(
