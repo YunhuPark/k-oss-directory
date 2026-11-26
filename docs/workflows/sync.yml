@@ -1,0 +1,57 @@
+# 이 파일은 .github/workflows/sync.yml 로 옮기면 활성화됩니다.
+# (GitHub App 권한상 .github/workflows 경로에 직접 push하지 못해 docs/에 둡니다.)
+# 옮기는 방법: GitHub 웹에서 .github/workflows/sync.yml 새 파일을 만들어 이 내용을 붙여넣고 커밋.
+name: 저장소 메타데이터 동기화
+
+on:
+  schedule:
+    # 매일 21:00 UTC = 06:00 KST
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'data/repos.json'
+      - 'scripts/**'
+      - '.github/workflows/sync.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-repos
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 단위 테스트
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: GitHub 메타데이터 수집
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/sync_repos.mjs
+
+      - name: 변경 사항 커밋
+        run: |
+          if git diff --quiet -- public/data/catalog.json; then
+            echo "변경된 내용이 없습니다."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/catalog.json
+          git commit -m "chore(data): 저장소 메타데이터 동기화 $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: 실패 시 요약
+        if: failure()
+        run: echo "::error::동기화에 실패했습니다. 직전 catalog.json은 유지되어 사이트는 계속 동작합니다."

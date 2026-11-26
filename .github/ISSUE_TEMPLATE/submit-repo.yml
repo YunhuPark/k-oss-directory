@@ -1,0 +1,53 @@
+name: 저장소 제보
+description: K-OSS Directory에 추가할 국산 오픈소스를 추천하거나, 잘못된 정보를 알려 주세요.
+title: "[제보] "
+labels: ["제보"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        제보 감사합니다. 아래 내용을 채워 주시면 `data/repos.json`에 반영하고 다음 동기화(매일 06:00 KST)에 사이트에 나타납니다.
+        반영 여부는 "국산(한국 팀·기업·개인 개발자) 오픈소스인가"와 "실무에 지금 쓸 수 있는가" 두 가지로 판단합니다.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 제보 종류
+      options:
+        - 새 저장소 추가
+        - 정보 수정 (라이선스·한국어 문서·링크 등)
+        - 삭제 요청
+    validations:
+      required: true
+
+  - type: input
+    id: repo
+    attributes:
+      label: 저장소
+      description: "`owner/name` 형식으로 적어 주세요."
+      placeholder: toss/es-toolkit
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: 넣어야 하는 이유 / 수정할 내용
+      description: 만든 곳이 국내인지, 어떤 상황에서 쓰는지 한두 줄로 적어 주세요. 수정 요청은 근거 링크를 함께 주시면 빠릅니다.
+      placeholder: 토스에서 만든 유틸리티 라이브러리입니다. lodash를 그대로 바꿔 쓸 수 있고 문서에 한국어가 있습니다.
+    validations:
+      required: true
+
+  - type: input
+    id: docs
+    attributes:
+      label: 문서·홈페이지 링크 (선택)
+      placeholder: https://es-toolkit.dev
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 확인
+      options:
+        - label: 한국 개발자·팀·기업이 만든 저장소입니다. (삭제·수정 요청은 해당 없음)
+        - label: 공개 저장소이며 LICENSE가 명시되어 있습니다. (삭제 요청은 해당 없음)

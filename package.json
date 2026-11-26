@@ -1,0 +1,16 @@
+{
+  "name": "k-oss-directory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "한국 개발자·한국어 지원 중심 오픈소스 큐레이션 디렉토리",
+  "type": "module",
+  "scripts": {
+    "test": "node --test scripts/tests/*.test.mjs",
+    "sync": "node scripts/sync_repos.mjs",
+    "seed": "node scripts/seed_from_gh.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
