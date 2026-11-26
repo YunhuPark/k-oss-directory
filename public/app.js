@@ -22,6 +22,7 @@ const state = {
   category: 'all',
   filters: new Set(),
   sort: 'stars',
+  filterOpen: false,
 };
 
 const el = {
@@ -29,7 +30,11 @@ const el = {
   sort: document.getElementById('sort'),
   tabs: document.getElementById('tabs'),
   chips: document.getElementById('chips'),
+  filterToggle: document.getElementById('filter-toggle'),
+  filterPanel: document.getElementById('filter-panel'),
+  filterCount: document.getElementById('filter-count'),
   count: document.getElementById('count'),
+  statusRow: document.querySelector('.status-row'),
   reset: document.getElementById('reset'),
   resetEmpty: document.getElementById('reset-empty'),
   grid: document.getElementById('grid'),
@@ -112,6 +117,50 @@ function syncControls() {
   }
   const hasCondition = state.query !== '' || state.category !== 'all' || state.filters.size > 0;
   el.reset.hidden = !hasCondition;
+  // 조건이 없을 때는 지표판의 숫자와 같은 "93개 표시"를 반복하지 않는다.
+  el.statusRow.hidden = !hasCondition;
+  syncFilterBadge();
+  revealActiveTab();
+  updateTabFade();
+}
+
+/* ── 세부 필터 접기/펼치기 ────────────────────────── */
+function setFilterOpen(open) {
+  state.filterOpen = Boolean(open);
+  el.filterPanel.hidden = !state.filterOpen;
+  el.filterToggle.setAttribute('aria-expanded', String(state.filterOpen));
+  el.filterToggle.classList.toggle('is-open', state.filterOpen);
+}
+
+function syncFilterBadge() {
+  const count = state.filters.size;
+  el.filterCount.textContent = count > 0 ? String(count) : '';
+  el.filterCount.hidden = count === 0;
+  el.filterToggle.classList.toggle('has-filters', count > 0);
+  const label = count > 0 ? `세부 필터, ${count}개 선택됨` : '세부 필터 열기';
+  el.filterToggle.setAttribute('aria-label', label);
+  el.filterToggle.setAttribute('title', label);
+}
+
+/** 가로 스크롤이 남았는지에 따라 카테고리 칩 좌우 페이드를 켜고 끈다. */
+function updateTabFade() {
+  const node = el.tabs;
+  const max = node.scrollWidth - node.clientWidth;
+  node.dataset.fadeStart = String(node.scrollLeft > 2);
+  node.dataset.fadeEnd = String(node.scrollLeft < max - 2);
+}
+
+/** 선택된 카테고리 칩이 잘려 보이지 않도록 스크롤 위치를 맞춘다. */
+function revealActiveTab() {
+  const button = el.tabs.querySelector('.tab[aria-pressed="true"]');
+  if (!button) return;
+  const box = el.tabs.getBoundingClientRect();
+  const chip = button.getBoundingClientRect();
+  if (chip.left < box.left + 2) {
+    el.tabs.scrollLeft -= box.left - chip.left + 14;
+  } else if (chip.right > box.right - 2) {
+    el.tabs.scrollLeft += chip.right - box.right + 14;
+  }
 }
 
 /* ── 조각 렌더 ──────────────────────────────────── */
@@ -399,6 +448,13 @@ function bindEvents() {
     render();
   });
 
+  el.tabs.addEventListener('scroll', updateTabFade, { passive: true });
+  window.addEventListener('resize', updateTabFade);
+
+  el.filterToggle.addEventListener('click', () => {
+    setFilterOpen(!state.filterOpen);
+  });
+
   el.chips.addEventListener('click', (event) => {
     const chip = event.target.closest('.chip');
     if (!chip) return;
@@ -481,6 +537,8 @@ async function init() {
   applyTheme(currentTheme(), { persist: false });
   el.reportLink.href = issueUrl('[제보] 새 저장소 추가');
   readHash();
+  // 공유된 링크에 필터가 걸려 있으면 왜 결과가 좁은지 보이도록 패널을 펼친다.
+  setFilterOpen(state.filters.size > 0);
   buildTabs();
   bindEvents();
   try {

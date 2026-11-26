@@ -54,9 +54,31 @@ function check(name, condition, detail = '') {
   console.log(`${condition ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
+/** 색·패널 전환 애니메이션이 끝난 뒤에 캐처한다. */
+function settle(page, ms = 260) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** 화면에 그려져야 하는 카드 이름 목록(카탈로그 기준 기대값) */
 function expectedNames(repos, options) {
   return selectRepos(repos, options).map((repo) => repo.name);
+}
+
+/** 세부 필터는 기본적으로 접혀 있다. 칩을 누르기 전에 패널을 펼친다. */
+async function openFilters(page) {
+  const expanded = await page.$eval('#filter-toggle', (node) => node.getAttribute('aria-expanded'));
+  if (expanded !== 'true') {
+    await page.click('#filter-toggle');
+    await page.waitForFunction(() => !document.getElementById('filter-panel').hidden);
+  }
+}
+
+async function closeFilters(page) {
+  const expanded = await page.$eval('#filter-toggle', (node) => node.getAttribute('aria-expanded'));
+  if (expanded === 'true') {
+    await page.click('#filter-toggle');
+    await page.waitForFunction(() => document.getElementById('filter-panel').hidden);
+  }
 }
 
 async function main() {
@@ -71,6 +93,7 @@ async function main() {
   const chartHits = expectedNames(repos, { query: '차트' });
   const updatedFirst = expectedNames(repos, { sort: 'updated' })[0];
   const starsFirst = expectedNames(repos, { sort: 'stars' })[0];
+  const frontendNames = expectedNames(repos, { category: 'frontend' });
 
   const server = createServer();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -170,6 +193,187 @@ async function main() {
       await screenshot(page, path.join(OUT_DIR, `home-${viewport.name}.png`), viewport);
       await fullScreenshot(page, path.join(OUT_DIR, `home-${viewport.name}-full.png`), viewport);
 
+      // 첫 화면: 세부 필터가 접혀 있고 카드가 몇 장 보이나
+      const firstScreen = await page.evaluate(() => {
+        const header = document.querySelector('.site-header').getBoundingClientRect();
+        const cards = [...document.querySelectorAll('.card')].map((node) => node.getBoundingClientRect());
+        return {
+          viewport: window.innerHeight,
+          firstTop: Math.round(cards[0].top),
+          cardHeight: Math.round(cards[0].height),
+          fullyVisible: cards.filter((card) => card.top >= header.bottom - 1 && card.bottom <= window.innerHeight + 0.5)
+            .length,
+        };
+      });
+      check(
+        `[${viewport.name}] 첫 화면 카드 2장 이상 노출`,
+        firstScreen.fullyVisible >= 2,
+        `${firstScreen.fullyVisible}장 · 첫 카드 ${firstScreen.firstTop}px부터 · 카드 높이 ${firstScreen.cardHeight}px · 뷰포트 ${
+          firstScreen.viewport
+        }px`,
+      );
+
+      // 세부 필터 기본값: 접힌 상태 + 배지 없음
+      const collapsed = await page.evaluate(() => {
+        const toggle = document.getElementById('filter-toggle');
+        const panel = document.getElementById('filter-panel');
+        return {
+          expanded: toggle.getAttribute('aria-expanded'),
+          hidden: panel.hidden,
+          panelHeight: Math.round(panel.getBoundingClientRect().height),
+          chips: document.querySelectorAll('#chips .chip').length,
+          badgeHidden: document.getElementById('filter-count').hidden,
+          searchVisible: document.getElementById('q').getBoundingClientRect().height > 0,
+          sortVisible: document.getElementById('sort').getBoundingClientRect().height > 0,
+        };
+      });
+      check(
+        `[${viewport.name}] 세부 필터 기본 접힘`,
+        collapsed.expanded === 'false' &&
+          collapsed.hidden &&
+          collapsed.panelHeight === 0 &&
+          collapsed.chips === 4 &&
+          collapsed.badgeHidden &&
+          collapsed.searchVisible &&
+          collapsed.sortVisible,
+        `aria-expanded ${collapsed.expanded} · panel ${collapsed.panelHeight}px · 칩 ${collapsed.chips}개 · 배지 ${
+          collapsed.badgeHidden ? '없음' : '있음'
+        } · 검색/정렬 노출 ${collapsed.searchVisible}/${collapsed.sortVisible}`,
+      );
+
+      // 카테고리: 트랙 없는 개별 필 칩 + 활성 강조 + 왼쪽 여백(클리핑 없음)
+      const tabStyle = await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll('#tabs .tab')];
+        const active = document.querySelector('#tabs .tab[aria-pressed="true"]');
+        const inactive = tabs.find((node) => node !== active);
+        const a = getComputedStyle(active);
+        const i = getComputedStyle(inactive);
+        const track = document.getElementById('tabs');
+        return {
+          count: tabs.length,
+          labels: tabs.map((node) => node.textContent.trim()),
+          paddingLeft: parseFloat(i.paddingLeft),
+          paddingRight: parseFloat(i.paddingRight),
+          height: Math.round(inactive.getBoundingClientRect().height),
+          borderWidth: i.borderTopWidth,
+          gap: parseFloat(getComputedStyle(track).columnGap),
+          trackBg: getComputedStyle(track).backgroundColor,
+          inactiveBg: i.backgroundColor,
+          activeBg: a.backgroundColor,
+          offsetLeft: Math.round(tabs[0].getBoundingClientRect().left - track.getBoundingClientRect().left),
+          trackOverflow: getComputedStyle(track).overflowX,
+        };
+      });
+      check(
+        `[${viewport.name}] 카테고리 개별 필 칩(트랙 없음·좌우 여백)`,
+        tabStyle.count === 6 &&
+          tabStyle.borderWidth === '1px' &&
+          tabStyle.paddingLeft >= 12 &&
+          tabStyle.paddingRight >= 12 &&
+          tabStyle.height >= 32 &&
+          tabStyle.gap >= 4 &&
+          tabStyle.trackBg === 'rgba(0, 0, 0, 0)' &&
+          tabStyle.offsetLeft >= (viewport.width < 768 ? 15 : 0),
+        `${tabStyle.count}개 · 패딩 ${tabStyle.paddingLeft}/${tabStyle.paddingRight} · 높이 ${tabStyle.height} · 간격 ${tabStyle.gap} · 트랙배경 ${tabStyle.trackBg} · 첫 칩 오프셋 ${tabStyle.offsetLeft}`,
+      );
+      check(
+        `[${viewport.name}] 활성 카테고리 대비(색 반전)`,
+        tabStyle.activeBg !== tabStyle.inactiveBg,
+        `활성 ${tabStyle.activeBg} · 비활성 ${tabStyle.inactiveBg} · ${tabStyle.labels.join(' / ')}`,
+      );
+
+      // 카테고리 전환: 전체 → 프론트엔드
+      await page.click('#tabs .tab[data-category="frontend"]');
+      await page.waitForFunction(
+        (expected) => document.querySelectorAll('.card').length === expected,
+        {},
+        frontendNames.length,
+      );
+      const frontendTitles = await page.$$eval('.card-title', (nodes) => nodes.map((node) => node.textContent.trim()));
+      const frontendCount = await page.$eval('#count', (node) => node.textContent.trim());
+      check(
+        `[${viewport.name}] 카테고리 프론트엔드 전환`,
+        frontendTitles.sort().join(',') === [...frontendNames].sort().join(',') && /\d+개 표시/.test(frontendCount),
+        `${frontendTitles.length}개 · ${frontendCount}`,
+      );
+      const frontendShot = await page.evaluate(() => {
+        const active = document.querySelector('#tabs .tab[aria-pressed="true"]');
+        const track = document.getElementById('tabs').getBoundingClientRect();
+        const chip = active.getBoundingClientRect();
+        return {
+          label: active.textContent.trim(),
+          visible: chip.left >= track.left - 1 && chip.right <= track.right + 1,
+        };
+      });
+      check(
+        `[${viewport.name}] 선택한 카테고리 칩이 스크롤 안에 보임`,
+        frontendShot.visible,
+        `${frontendShot.label} · ${frontendShot.visible ? '보임' : '가려짐'}`,
+      );
+      await settle(page);
+      await screenshot(page, path.join(OUT_DIR, `category-frontend-${viewport.name}.png`), viewport);
+      // 마지막 카테고리도 스크롤로 닿는지 + 초기화
+      await page.click('#reset');
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, total);
+      const lastTabVisible = await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll('#tabs .tab')];
+        const track = document.getElementById('tabs');
+        const last = tabs[tabs.length - 1];
+        last.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+        const box = track.getBoundingClientRect();
+        const chip = last.getBoundingClientRect();
+        return { label: last.textContent.trim(), visible: chip.left >= box.left - 1 && chip.right <= box.right + 1 };
+      });
+      check(`[${viewport.name}] 마지막 카테고리 칩까지 스크롤`, lastTabVisible.visible, lastTabVisible.label);
+      await page.evaluate(() => {
+        document.getElementById('tabs').scrollLeft = 0;
+      });
+
+      // 세부 필터 펼치기/접기 + 선택 개수 배지
+      await openFilters(page);
+      const opened = await page.evaluate(() => ({
+        expanded: document.getElementById('filter-toggle').getAttribute('aria-expanded'),
+        height: Math.round(document.getElementById('filter-panel').getBoundingClientRect().height),
+        items: document.querySelectorAll('#chips .chip').length,
+      }));
+      check(
+        `[${viewport.name}] 세부 필터 펼침`,
+        opened.expanded === 'true' && opened.height > 0 && opened.items === 4,
+        `height ${opened.height}px · 칩 ${opened.items}개`,
+      );
+      await settle(page);
+      await screenshot(page, path.join(OUT_DIR, `filter-open-${viewport.name}.png`), viewport);
+      const openOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      );
+      check(`[${viewport.name}] 필터 펼친 상태 가로 넘침 0`, openOverflow);
+
+      await page.click('.chip[data-filter="recent"]');
+      await page.waitForFunction(() => document.getElementById('filter-count').textContent === '1');
+      const badge = await page.evaluate(() => ({
+        text: document.getElementById('filter-count').textContent,
+        hidden: document.getElementById('filter-count').hidden,
+        label: document.getElementById('filter-toggle').getAttribute('aria-label'),
+      }));
+      check(
+        `[${viewport.name}] 선택 개수 배지`,
+        !badge.hidden && badge.text === '1' && /1개/.test(badge.label),
+        `${badge.text} · ${badge.label}`,
+      );
+      await closeFilters(page);
+      const collapsedAgain = await page.evaluate(() => ({
+        hidden: document.getElementById('filter-panel').hidden,
+        badge: document.getElementById('filter-count').textContent,
+      }));
+      check(
+        `[${viewport.name}] 접어도 선택 유지(배지)`,
+        collapsedAgain.hidden && collapsedAgain.badge === '1',
+        `panel hidden ${collapsedAgain.hidden} · 배지 ${collapsedAgain.badge}`,
+      );
+      await openFilters(page);
+      await page.click('.chip[data-filter="recent"]');
+      await page.waitForFunction(() => document.getElementById('filter-count').hidden);
+
       // 검색
       await page.click('#q');
       await page.type('#q', '차트', { delay: 20 });
@@ -249,6 +453,8 @@ async function main() {
       );
 
       // 다크 모드 토글 + 저장
+      await closeFilters(page);
+      await page.evaluate(() => document.activeElement?.blur());
       const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
       await page.click('#theme-toggle');
       await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark');
@@ -259,6 +465,8 @@ async function main() {
         lightBg !== darkBg && stored === 'dark',
         `light ${lightBg} → dark ${darkBg} · 저장 ${stored}`,
       );
+      // 색 전환 트랜지션이 끝난 뒤에 캐처해야 화면이 그대로 보인다.
+      await settle(page, 400);
       await screenshot(page, path.join(OUT_DIR, `home-${viewport.name}-dark.png`), viewport);
       await page.reload({ waitUntil: 'networkidle0' });
       await page.waitForSelector('.card');
@@ -458,6 +666,7 @@ async function main() {
       check(`[${viewport.name}] 모달 닫힘`, true);
 
       // URL 해시 공유 상태
+      await openFilters(page);
       await page.click('.chip[data-filter="korean"]');
       const hash = await page.evaluate(() => location.hash);
       await page.reload({ waitUntil: 'networkidle0' });

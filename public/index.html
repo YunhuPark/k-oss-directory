@@ -99,14 +99,13 @@
         <div class="metrics" id="hero-stats" aria-label="수록 현황"></div>
       </section>
 
-      <section class="howto" aria-label="사용법">
-        <p class="howto-label">어떻게 쓰나요?</p>
-        <ol class="howto-steps">
-          <li><span class="howto-num" aria-hidden="true">1</span>필터로 조건을 좁히고</li>
-          <li><span class="howto-num" aria-hidden="true">2</span>카드를 눌러 판정을 확인한 뒤</li>
-          <li><span class="howto-num" aria-hidden="true">3</span>GitHub에서 설치하세요</li>
-        </ol>
-      </section>
+      <p class="howto-line" aria-label="사용법">
+        <span class="howto-num" aria-hidden="true">1</span> 필터로 좁히고
+        <span class="howto-sep" aria-hidden="true">→</span>
+        <span class="howto-num" aria-hidden="true">2</span> 판정 확인
+        <span class="howto-sep" aria-hidden="true">→</span>
+        <span class="howto-num" aria-hidden="true">3</span> GitHub 설치
+      </p>
 
       <section class="controls" aria-label="검색과 필터">
         <div class="search-row">
@@ -128,16 +127,39 @@
             <label class="sr-only" for="sort">정렬</label>
             <select id="sort"></select>
           </div>
+          <button
+            class="filter-toggle"
+            id="filter-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="filter-panel"
+            aria-label="세부 필터 열기"
+          >
+            <svg class="filter-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path
+                d="M2.6 3.4h10.8l-4.1 4.7v4.3l-2.6 1.2V8.1L2.6 3.4z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="filter-text">필터</span>
+            <span class="filter-count" id="filter-count" hidden></span>
+            <svg class="filter-caret" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+              <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+          </button>
         </div>
 
-        <div class="filter-block">
-          <p class="field-label">CATEGORY</p>
+        <p class="field-label tabs-label" aria-hidden="true">CATEGORY</p>
+        <div class="tabs-wrap">
           <nav class="tabs" id="tabs" aria-label="카테고리"></nav>
         </div>
 
-        <div class="filter-block">
+        <div class="filter-panel" id="filter-panel" hidden>
           <p class="field-label">FILTER <span class="field-hint">다중 선택</span></p>
-          <div class="chips" id="chips" aria-label="필터"></div>
+          <div class="chips" id="chips" role="group" aria-label="세부 필터"></div>
         </div>
 
         <div class="status-row">
