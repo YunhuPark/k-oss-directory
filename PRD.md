@@ -238,7 +238,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 **다음 배치 후보(추측 금지 — 투입 전 `gh api repos/{owner}/{repo}` 재검증)**: 실측만 해 두고 이번에 넣지 않은 `kakao/detek`·`line/stellite`·`coupang/spring-data-requery`·`naver/egjs-view3d`·`toss/yarn-plugin-workspace-since`(라이선스 미명시), `kakaobrain/torchgpipe`·`kakaobrain/fast-autoaugment`·`hyperconnect/TC-ResNet`(연구 재현 코드라 후순위). 계속 제외: `toss/slash`·`nhn/tui.calendar`·`naver/ngrinder`·`line/tsr`(보관됨), `naver/fe-news`·`toss/technical-writing`(라이선스 미명시), `naver/dust3r`·`naver/mast3r`(비상업).
 
 > 시드 확장 원칙: **스타 수보다 "지금 실무에 붙일 수 있는가"**. 3년 이상 커밋이 없고 대체재가 있으면 제외하거나 `보관됨`으로 표시한다.
-> 배치 단위는 주 1회 5~7개. 한 번에 많이 넣으면 검수 품질이 서비스 품질을 앞지른다.
+> 배치 단위는 원칙적으로 주 1회 5~7개다. 3차만 사용자가 70~100개 규모로의 확장을 직접 요청해 53개를 한 번에 투입했다. 후보 63개 전부를 `gh api`로 재검증하고 탈락 근거를 위에 남긴 것이 품질 보증 장치이며, 다음 배치는 다시 5~7개 단위로 돌아간다.
 >
 > "국산" 경계 메모: `line/armeria`·`line/centraldogma`는 네이버 계열(LINE) 조직 저장소로, 한국·일본 엔지니어가 함께 관리한다. 수록은 유지하되 `vendor`에 `라인`으로 표시해 출처를 숨기지 않는다.
 
