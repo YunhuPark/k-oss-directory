@@ -255,8 +255,8 @@ a:hover {
   height: 18px;
 }
 
-:root[data-theme="light"] .icon-moon,
-:root[data-theme="dark"] .icon-sun {
+:root[data-theme="light"] .icon-sun,
+:root[data-theme="dark"] .icon-moon {
   display: none;
 }
 
