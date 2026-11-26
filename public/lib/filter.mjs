@@ -7,12 +7,73 @@
  *   2) BM25(필드 가중치 + 문서 길이 정규화)로 관련도를 매겨 정렬한다.
  */
 
+/* ── MCP · 스킬 판별 ──────────────────────────────────────────────
+ * 대상은 두 갈래다.
+ *   1) MCP 서버·클라이언트 — mcp / mcp-server / mcp-client / model-context-protocol 토픽,
+ *      이름이 mcp로 끝나는 저장소(hwp-mcp, codemcp …)
+ *   2) 코딩 에이전트용 스킬·플러그인 — agent-skills / claude-skill / claude-code-plugin 같은 토픽,
+ *      이름이 skills·*-skill인 저장소, 그리고 소개·원문 설명의 'Claude Code 플러그인' 같은 표현
+ *
+ * 일반 '플러그인'은 보지 않는다. oh-my-zsh·eslint·stackflow·mkdocs처럼 플러그인 구조를 쓰는
+ * 프레임워크가 전부 걸리면 칩의 뜻이 흐려지므로, 플러그인은 claude·codex·skill 같은
+ * 에이전트 낱말과 함께 있을 때만 센다. MCP를 언급만 하는 도구(shadcn CLI로 설치, MCP 지원)도 뺀다.
+ */
+const WORD_SPLIT_MCP = /[^\p{L}\p{N}+]+/u;
+
+/** 플러그인이 붙어 있을 때만 '에이전트 플러그인'으로 보는 낱말 */
+const PLUGIN_OWNERS = new Set(['claude', 'claude-code', 'codex', 'cursor', 'gemini', 'skill', 'skills', 'agent-skills', 'mcp']);
+
+function wordsOf(value) {
+  return normalize(value).split(WORD_SPLIT_MCP).filter(Boolean);
+}
+
+/** 태그·토픽 하나가 MCP·스킬을 가리키는지(낱말 단위) */
+function tagIsMcpSkill(tag) {
+  const lower = normalize(tag);
+  const parts = wordsOf(lower);
+  if (parts.includes('mcp') || lower.endsWith('mcp')) return true; // mcp · mcp-server · claude-mcp · googleadsmcp
+  if (lower === 'model-context-protocol') return true;
+  if (parts.includes('skill') || parts.includes('skills')) return true; // agent-skills · claude-skill · seo-skills
+  if ((parts.includes('plugin') || parts.includes('plugins')) && parts.some((part) => PLUGIN_OWNERS.has(part))) {
+    return true; // claude-code-plugin · codex-plugin (plugin·plugins 단독은 제외)
+  }
+  return false;
+}
+
+/** 소개·설명에서 '에이전트 스킬'·'Claude Code 플러그인'처럼 주어와 붙어 나오는 표현만 본다. */
+const AGENT_WORDS = '(?:agents?|에이전트|claude|codex|cursor|llm)';
+const SKILL_WORDS = '(?:skills?|스킬|plugins?|플러그인)';
+const AGENT_THEN_SKILL = new RegExp(`${AGENT_WORDS}[^.\\n]{0,24}${SKILL_WORDS}`, 'i');
+const SKILL_FOR_AGENT = new RegExp(`${SKILL_WORDS}[^.\\n]{0,12}(?:용|for)\\s[^.\\n]{0,24}${AGENT_WORDS}`, 'i');
+
+/** MCP 서버·클라이언트이거나 코딩 에이전트용 스킬·플러그인이면 true */
+export function isMcpOrSkill(repo) {
+  if (!repo) return false;
+  for (const tag of [...(repo.tags ?? []), ...(repo.topics ?? [])]) {
+    if (tagIsMcpSkill(tag)) return true;
+  }
+  const name = normalize(repo.name);
+  const nameParts = wordsOf(name);
+  if (nameParts.includes('mcp') || nameParts.includes('skills')) return true;
+  if (name.endsWith('mcp') || name.endsWith('-skill') || name.endsWith('-skills')) return true;
+  const text = `${repo.summary ?? ''} ${repo.description ?? ''}`;
+  return AGENT_THEN_SKILL.test(text) || SKILL_FOR_AGENT.test(text);
+}
+
+/** 칩·배지가 함께 쓰는 판정: 데이터에 mcpSkill 값을 적었으면 그것을, 없으면 자동 판별을 따른다. */
+export function hasMcpSkill(repo) {
+  if (!repo) return false;
+  return typeof repo.mcpSkill === 'boolean' ? repo.mcpSkill : isMcpOrSkill(repo);
+}
+
 /** 필터 칩 정의(화면과 URL에서 함께 사용) */
 export const FILTERS = [
   { key: 'korean', label: '한국어 문서', test: (repo) => repo.koreanDocs === true },
   { key: 'commercial', label: '상업 무료', test: (repo) => repo.commercialUse === true },
   { key: 'docker', label: 'Docker', test: (repo) => repo.docker === true },
   { key: 'recent', label: '최근 3개월', test: (repo) => repo.recent === true },
+  // 데이터에 직접 적은 값(mcpSkill)이 있으면 그것을 따르고, 없으면 태그·토픽·이름·소개로 판별한다.
+  { key: 'mcp', label: 'MCP · 스킬', test: (repo) => hasMcpSkill(repo) },
 ];
 
 export const FILTER_KEYS = FILTERS.map((filter) => filter.key);

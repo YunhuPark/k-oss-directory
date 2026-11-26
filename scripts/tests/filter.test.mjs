@@ -6,6 +6,8 @@ import {
   PAGE_SIZE,
   formatRelativeDate,
   formatStars,
+  hasMcpSkill,
+  isMcpOrSkill,
   matchesCategory,
   matchesQuery,
   nextVisibleCount,
@@ -78,9 +80,51 @@ const repos = [
   },
 ];
 
-test('FILTER_KEYS: 칩 4종', () => {
-  assert.deepEqual(FILTER_KEYS, ['korean', 'commercial', 'docker', 'recent']);
-  assert.equal(FILTERS.length, 4);
+test('FILTER_KEYS: 칩 5종', () => {
+  assert.deepEqual(FILTER_KEYS, ['korean', 'commercial', 'docker', 'recent', 'mcp']);
+  assert.equal(FILTERS.length, 5);
+  assert.equal(FILTERS.at(-1).label, 'MCP · 스킬');
+});
+
+test('isMcpOrSkill: MCP 서버·클라이언트를 토픽·이름으로 찾는다', () => {
+  // 토픽 mcp / mcp-server / model-context-protocol
+  assert.equal(isMcpOrSkill({ ...base, repo: 'treesoop/hwp-mcp', name: 'hwp-mcp', tags: [], topics: ['mcp-server', 'model-context-protocol'] }), true);
+  assert.equal(isMcpOrSkill({ ...base, name: 'anything', tags: ['MCP'], topics: [] }), true);
+  // 이름이 mcp로 끝나는 저장소(토픽이 비어 있어도)
+  assert.equal(isMcpOrSkill({ ...base, repo: 'ezyang/codemcp', name: 'codemcp', tags: [], topics: [], summary: 'Claude 데스크톱에서 코드를 다루게 해 주는 도구.' }), true);
+  assert.equal(isMcpOrSkill({ ...base, repo: 'modelcontextprotocol/python-sdk', name: 'python-sdk', tags: [], topics: ['mcp-client'] }), true);
+});
+
+test('isMcpOrSkill: 코딩 에이전트용 스킬·플러그인을 찾는다', () => {
+  assert.equal(isMcpOrSkill({ ...base, repo: 'addyosmani/agent-skills', name: 'agent-skills', tags: ['agent-skills'], topics: [] }), true);
+  assert.equal(isMcpOrSkill({ ...base, repo: 'vmc-inner-circle/k-style-ui-ux', name: 'k-style-ui-ux', tags: [], topics: ['claude-code-plugin'] }), true);
+  assert.equal(isMcpOrSkill({ ...base, repo: 'one/skills', name: 'my-design-skill', tags: [], topics: [] }), true);
+  // 토픽에 없고 소개·설명에만 있어도, 에이전트 낱말과 붙어 있으면 스킬로 본다
+  assert.equal(isMcpOrSkill({ ...base, name: 'hallmark', tags: ['CSS'], topics: [], description: 'Anti-AI-slop design skill for Claude Code, Cursor, and Codex.' }), true);
+  assert.equal(isMcpOrSkill({ ...base, name: 'ccpm', tags: [], topics: [], summary: '병렬 에이전트 작업을 관리하는 PM 스킬 시스템.' }), true);
+});
+
+test('isMcpOrSkill: 일반 플러그인·MCP 언급만 하는 도구는 걸리지 않는다', () => {
+  const plain = { ...base, tags: [], topics: [] };
+  // 플러그인 구조를 쓰는 일반 프레임워크
+  assert.equal(isMcpOrSkill({ ...plain, repo: 'ohmyzsh/ohmyzsh', name: 'ohmyzsh', tags: ['Shell'], topics: ['plugin-framework', 'plugins'], summary: '플러그인 300여 개와 테마를 바로 쓸 수 있다.' }), false);
+  assert.equal(isMcpOrSkill({ ...plain, repo: 'eslint/eslint', name: 'eslint', tags: ['JavaScript'], topics: ['plugins'], summary: '플러그인으로 규칙을 조립해 팀 규칙을 코드로 강제한다.' }), false);
+  assert.equal(isMcpOrSkill({ ...plain, repo: 'pytest-dev/pytest-xdist', name: 'pytest-xdist', topics: ['pytest-plugin'], summary: 'pytest를 여러 프로세스로 병렬 실행하는 플러그인.' }), false);
+  // MCP를 설치 수단·지원 기능으로만 언급
+  assert.equal(isMcpOrSkill({ ...plain, name: 'kokonutui', topics: ['ai', 'components'], description: '100+ React components for AI chat. Install with the shadcn CLI or MCP.' }), false);
+  assert.equal(isMcpOrSkill({ ...plain, name: 'ccusage', tags: ['Rust'], summary: 'Claude Code 등 에이전트 사용량과 토큰 비용을 집계해 주는 CLI.' }), false);
+  // 'skill'이 들어간 다른 낱말(링크드인 스킬 인증)
+  assert.equal(isMcpOrSkill({ ...plain, name: 'the-endorser', topics: ['osint', 'linkedin'], summary: '링크드인 스킬 인증으로 사람 사이 관계를 그려 내는 OSINT 도구.' }), false);
+  assert.equal(isMcpOrSkill(null), false);
+});
+
+test('hasMcpSkill: 데이터의 mcpSkill 값이 자동 판별을 덮어쓴다', () => {
+  const mcpRepo = { ...base, repo: 'x/hwp-mcp', name: 'hwp-mcp', tags: [], topics: ['mcp-server'] };
+  assert.equal(hasMcpSkill(mcpRepo), true);
+  assert.equal(hasMcpSkill({ ...mcpRepo, mcpSkill: false }), false);
+  const plain = { ...base, repo: 'x/plain', name: 'plain', tags: [], topics: [] };
+  assert.equal(hasMcpSkill(plain), false);
+  assert.equal(hasMcpSkill({ ...plain, mcpSkill: true }), true);
 });
 
 test('matchesQuery: 이름·소개·태그·영문 설명·대소문자 무시', () => {
@@ -165,6 +209,18 @@ test('passesFilters: 다중 선택은 AND', () => {
   assert.equal(passesFilters(base, ['korean', 'commercial']), true);
   assert.equal(passesFilters(base, ['korean', 'docker']), false);
   assert.equal(passesFilters(base, new Set(['docker'])), false);
+});
+
+test('passesFilters: MCP · 스킬도 다른 칩과 AND로 묶인다', () => {
+  const skill = { ...base, repo: 'x/design-skill', name: 'design-skill', tags: [], topics: ['agent-skills'], docker: true };
+  assert.equal(passesFilters(skill, ['mcp']), true);
+  assert.equal(passesFilters(skill, ['mcp', 'docker']), true);
+  assert.equal(passesFilters(skill, ['mcp', 'korean', 'recent']), true);
+  assert.equal(passesFilters(base, ['mcp']), false);
+  assert.deepEqual(
+    selectRepos([base, skill], { filters: ['mcp'], sort: 'stars' }).map((repo) => repo.name),
+    ['design-skill'],
+  );
 });
 
 test('sortRepos: 스타순·업데이트순·이름순', () => {

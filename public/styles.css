@@ -22,6 +22,8 @@
   --purple-text: #5b21b6;
   --orange-bg: #fff4e5;
   --orange-text: #9a3412;
+  --teal-bg: #ecfeff;
+  --teal-text: #0e7490;
   --gray-bg: #f3f4f6;
   --gray-text: #374151;
 
@@ -63,6 +65,8 @@
   --purple-text: #c4b0ff;
   --orange-bg: #32200f;
   --orange-text: #fdba74;
+  --teal-bg: #0d2b33;
+  --teal-text: #67e8f9;
   --gray-bg: #23272e;
   --gray-text: #d1d5db;
 
@@ -870,6 +874,11 @@ a:hover {
 .badge-docker {
   background: var(--purple-bg);
   color: var(--purple-text);
+}
+
+.badge-mcp {
+  background: var(--teal-bg);
+  color: var(--teal-text);
 }
 
 .badge-archived {

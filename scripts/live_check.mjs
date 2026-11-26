@@ -9,6 +9,7 @@
  */
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
+import { hasMcpSkill } from '../public/lib/filter.mjs';
 const require = createRequire(import.meta.url);
 const puppeteer = require(process.env.PUPPETEER_PATH || 'puppeteer');
 
@@ -42,6 +43,10 @@ async function typeQuery(page, text) {
 }
 
 await mkdir(OUT, { recursive: true });
+
+/** 배포된 catalog.json으로 MCP · 스킬 항목 수를 센다(로컬 filter.mjs 판별과 같은 규칙). */
+const liveCatalog = await (await fetch(new URL('./data/catalog.json', BASE))).json();
+const mcpTotal = (liveCatalog.repos ?? []).filter((repo) => hasMcpSkill(repo)).length;
 
 try {
   for (const viewport of [
@@ -139,6 +144,53 @@ try {
       `[${viewport.name}] k-ui-ux 검색 → k-style-ui-ux`,
       tokenTitles.length === 1 && tokenTitles[0] === 'k-style-ui-ux',
       tokenTitles.join(', '),
+    );
+
+    // MCP · 스킬 필터: 칩을 눌러 배지·개수·해시가 함께 따라오는지
+    await page.click('#filter-toggle');
+    await page.waitForFunction(() => !document.getElementById('filter-panel').hidden);
+    await page.click('.chip[data-filter="mcp"]');
+    await page.waitForFunction(
+      (expected) => document.getElementById('count').textContent.includes(String(expected)),
+      {},
+      mcpTotal,
+    );
+    const mcpState = await page.evaluate(() => ({
+      hash: location.hash,
+      cards: document.querySelectorAll('.card').length,
+      badges: document.querySelectorAll('.card .badge-mcp').length,
+      count: document.getElementById('count').textContent.replace(/\s+/g, ' ').trim(),
+      chip: document.querySelector('.chip[data-filter="mcp"]').textContent.trim(),
+      pressed: document.querySelector('.chip[data-filter="mcp"]').getAttribute('aria-pressed'),
+    }));
+    check(
+      `[${viewport.name}] MCP · 스킬 필터 — ${mcpTotal}개 중 ${mcpState.cards}개 표시`,
+      mcpState.chip === 'MCP · 스킬' &&
+        mcpState.pressed === 'true' &&
+        mcpState.cards === 24 &&
+        mcpState.badges === 24 &&
+        mcpState.hash.includes('f=mcp'),
+      `${mcpState.count} · 배지 ${mcpState.badges} · ${mcpState.hash}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await page.screenshot({ path: `${OUT}/${TAG}-mcp-${viewport.name}.png` });
+
+    // 링크로 바로 들어와도 같게 열린다(#f=mcp)
+    await page.goto(`${BASE}#f=mcp`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.card');
+    const mcpHashState = await page.evaluate(() => ({
+      panelOpen: !document.getElementById('filter-panel').hidden,
+      pressed: document.querySelector('.chip[data-filter="mcp"]')?.getAttribute('aria-pressed'),
+      badges: document.querySelectorAll('.card .badge-mcp').length,
+      count: document.getElementById('count').textContent.replace(/\s+/g, ' ').trim(),
+    }));
+    check(
+      `[${viewport.name}] #f=mcp 링크 복원 — ${mcpHashState.badges}개 카드 배지`,
+      mcpHashState.panelOpen &&
+        mcpHashState.pressed === 'true' &&
+        mcpHashState.badges === 24 &&
+        mcpHashState.count.includes(String(mcpTotal)),
+      mcpHashState.count,
     );
 
     // 첫 화면으로 돌아와 캡처

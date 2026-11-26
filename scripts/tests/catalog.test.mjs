@@ -74,6 +74,20 @@ test('buildEntry: GitHub이 라이선스를 못 읽으면 직접 확인한 OFL-1
   assert.equal(entry.commercialUse, true);
 });
 
+test('buildEntry: 사람이 적은 mcpSkill만 카탈로그에 남긴다', () => {
+  const plain = buildEntry({ curated, repo: repoJson, readmeText: '', rootNames: [], now });
+  assert.equal('mcpSkill' in plain, false); // 적지 않았으면 자동 판별에 맡긴다
+
+  const forced = buildEntry({
+    curated: { ...curated, mcpSkill: false },
+    repo: repoJson,
+    readmeText: '',
+    rootNames: [],
+    now,
+  });
+  assert.equal(forced.mcpSkill, false);
+});
+
 test('buildEntry: 라이선스 출처를 github·none으로 남긴다', () => {
   const fromApi = buildEntry({ curated, repo: repoJson, readmeText: '', rootNames: [], now });
   assert.equal(fromApi.licenseSource, 'github');

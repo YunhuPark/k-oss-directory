@@ -18,7 +18,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './serve.mjs';
-import { PAGE_SIZE, selectRepos } from '../public/lib/filter.mjs';
+import { PAGE_SIZE, hasMcpSkill, selectRepos } from '../public/lib/filter.mjs';
 
 const require = createRequire(import.meta.url);
 const puppeteer = require(process.env.PUPPETEER_PATH || 'puppeteer');
@@ -96,6 +96,8 @@ async function main() {
   const commercialKorean = repos.filter((repo) => repo.commercialUse && repo.koreanDocs).length;
   const koreanCount = repos.filter((repo) => repo.koreanDocs).length;
   const commercialCount = repos.filter((repo) => repo.commercialUse).length;
+  const mcpCount = repos.filter((repo) => hasMcpSkill(repo)).length;
+  const mcpKoreanCount = repos.filter((repo) => hasMcpSkill(repo) && repo.koreanDocs).length;
   const chartHits = expectedNames(repos, { query: '차트' });
   const updatedFirst = expectedNames(repos, { sort: 'updated' })[0];
   const starsFirst = expectedNames(repos, { sort: 'stars' })[0];
@@ -524,7 +526,7 @@ async function main() {
         collapsed.expanded === 'false' &&
           collapsed.hidden &&
           collapsed.panelHeight === 0 &&
-          collapsed.chips === 4 &&
+          collapsed.chips === 5 &&
           collapsed.badgeHidden &&
           collapsed.searchVisible &&
           collapsed.sortVisible,
@@ -633,7 +635,7 @@ async function main() {
       }));
       check(
         `[${viewport.name}] 세부 필터 펼침`,
-        opened.expanded === 'true' && opened.height > 0 && opened.items === 4,
+        opened.expanded === 'true' && opened.height > 0 && opened.items === 5,
         `height ${opened.height}px · 칩 ${opened.items}개`,
       );
       await settle(page);
@@ -748,6 +750,65 @@ async function main() {
       const dockerHits = await page.$$eval('.card-title', (titles) => titles.map((t) => t.textContent.trim()));
       check(`[${viewport.name}] Docker 필터`, dockerHits.length === dockerPage, `${dockerHits.length}개`);
       await screenshot(page, path.join(OUT_DIR, `filter-docker-${viewport.name}.png`), viewport);
+
+      // 필터: MCP · 스킬 — 칩·카드 배지·해시가 같은 판별을 쓴다
+      await page.click('.chip[data-filter="docker"]');
+      await page.click('.chip[data-filter="mcp"]');
+      const mcpPage = firstPageCount(mcpCount);
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, mcpPage);
+      const mcpState = await page.evaluate(() => ({
+        hash: location.hash,
+        chips: document.querySelectorAll('#chips .chip').length,
+        badgeCells: document.querySelectorAll('.card .badge-mcp').length,
+        cards: document.querySelectorAll('.card').length,
+        count: document.getElementById('count').textContent.replace(/\s+/g, ' ').trim(),
+        label: document.querySelector('.chip[data-filter="mcp"]').textContent.trim(),
+        pressed: document.querySelector('.chip[data-filter="mcp"]').getAttribute('aria-pressed'),
+      }));
+      const mcpNames = expectedNames(repos, { filters: ['mcp'], sort: 'stars' });
+      const mcpTitles = await page.$$eval('.card-title', (titles) => titles.map((title) => title.textContent.trim()));
+      check(
+        `[${viewport.name}] MCP · 스킬 필터 — ${mcpCount}개 중 ${mcpPage}개 표시`,
+        mcpState.chips === 5 &&
+          mcpState.label === 'MCP · 스킬' &&
+          mcpState.pressed === 'true' &&
+          mcpState.hash.includes('f=mcp') &&
+          mcpState.cards === mcpPage &&
+          mcpState.badgeCells === mcpPage &&
+          mcpState.count.includes(String(mcpCount)) &&
+          mcpTitles.join(',') === firstPage(mcpNames).join(','),
+        `${mcpState.cards}개 표시 · ${mcpState.count} · 배지 ${mcpState.badgeCells} · ${mcpState.hash}`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `filter-mcp-${viewport.name}.png`), viewport);
+
+      // MCP · 스킬 ∩ 한국어 문서 (AND) — 칩 두 개가 함께 걸린다
+      await page.click('.chip[data-filter="korean"]');
+      await page.waitForFunction(
+        (expected) => document.querySelectorAll('.card').length === expected,
+        {},
+        firstPageCount(mcpKoreanCount),
+      );
+      const mcpKoreanState = await page.evaluate(() => ({
+        cards: document.querySelectorAll('.card').length,
+        badge: document.getElementById('filter-count').textContent,
+        badges: document.querySelectorAll('.card .badge-mcp').length,
+        hash: location.hash,
+      }));
+      check(
+        `[${viewport.name}] MCP · 스킬 ∩ 한국어 문서`,
+        mcpKoreanState.cards === firstPageCount(mcpKoreanCount) &&
+          mcpKoreanState.badge === '2' &&
+          mcpKoreanState.badges === firstPageCount(mcpKoreanCount) &&
+          mcpKoreanState.hash.includes('mcp') &&
+          mcpKoreanState.hash.includes('korean'),
+        `${mcpKoreanState.cards}개 표시 · ${mcpKoreanCount}개 일치 · ${mcpKoreanState.hash}`,
+      );
+      await screenshot(page, path.join(OUT_DIR, `filter-mcp-korean-${viewport.name}.png`), viewport);
+      await page.click('.chip[data-filter="korean"]');
+      await page.waitForFunction((expected) => document.querySelectorAll('.card').length === expected, {}, mcpPage);
+      await page.click('.chip[data-filter="mcp"]');
+      await page.click('.chip[data-filter="docker"]');
+      await page.waitForFunction(() => document.getElementById('filter-count').textContent === '1');
 
       // 필터: 상업 무료 + 한국어 문서 (AND)
       const commercialPage = firstPageCount(commercialKorean);
@@ -1073,11 +1134,24 @@ async function main() {
       // URL 해시 공유 상태
       await openFilters(page);
       await page.click('.chip[data-filter="korean"]');
+      await page.click('.chip[data-filter="mcp"]');
       const hash = await page.evaluate(() => location.hash);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.card');
-      const restored = await page.$eval('.chip[data-filter="korean"]', (el) => el.getAttribute('aria-pressed'));
-      check(`[${viewport.name}] 해시로 필터 복원`, restored === 'true', hash);
+      const restored = await page.evaluate(() => ({
+        korean: document.querySelector('.chip[data-filter="korean"]').getAttribute('aria-pressed'),
+        mcp: document.querySelector('.chip[data-filter="mcp"]').getAttribute('aria-pressed'),
+        badges: document.querySelectorAll('.card .badge-mcp').length,
+        cards: document.querySelectorAll('.card').length,
+      }));
+      check(
+        `[${viewport.name}] 해시로 필터 복원(한국어 문서 + MCP · 스킬)`,
+        restored.korean === 'true' &&
+          restored.mcp === 'true' &&
+          restored.cards === firstPageCount(mcpKoreanCount) &&
+          restored.badges === firstPageCount(mcpKoreanCount),
+        hash,
+      );
 
       // 키보드 접근 (Enter)
       await page.click('#reset');

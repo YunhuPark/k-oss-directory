@@ -8,6 +8,7 @@ import {
   nextVisibleCount,
   formatStars,
   formatDate,
+  hasMcpSkill,
 } from './lib/filter.mjs';
 
 const REPO_URL = 'https://github.com/YunhuPark/k-oss-directory';
@@ -231,6 +232,8 @@ function cardBadges(repo) {
     commercial,
     repo.koreanDocs ? badge('한국어 문서', 'korean', repo.koreanDocsSource === 'curated' ? 'question' : 'verified') : '',
     repo.docker ? badge('Docker', 'docker', repo.dockerSource === 'curated' ? 'question' : 'verified') : '',
+    // MCP 서버·클라이언트와 코딩 에이전트용 스킬·플러그인은 필터 칩과 같은 판별을 쓴다.
+    hasMcpSkill(repo) ? badge('MCP · 스킬', 'mcp') : '',
     repo.archived ? badge('보관됨', 'archived') : '',
   ]
     .filter(Boolean)

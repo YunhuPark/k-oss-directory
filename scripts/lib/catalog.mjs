@@ -182,6 +182,8 @@ export function buildEntry({ curated, repo, readmeText, rootNames, now }) {
     koreanDocsSource: korean.source,
     docker: docker.value,
     dockerSource: docker.source,
+    // 사람이 MCP·스킬 자동 판별을 뒤집어야 할 때만 값이 붙는다(없으면 사이트가 태그·토픽·소개로 판별).
+    ...(typeof curated.mcpSkill === 'boolean' ? { mcpSkill: curated.mcpSkill } : {}),
     url: `https://github.com/${curated.repo}`,
     recent: isRecent(repo.pushed_at, now),
     stale: false,
@@ -267,6 +269,7 @@ export function assertCatalog(catalog) {
     if (!CATEGORIES[entry.category]) problems.push(`알 수 없는 카테고리: ${entry.repo} (${entry.category})`);
     if (typeof entry.koreanDocs !== 'boolean') problems.push(`koreanDocs 형식 오류: ${entry.repo}`);
     if (typeof entry.docker !== 'boolean') problems.push(`docker 형식 오류: ${entry.repo}`);
+    if (entry.mcpSkill !== undefined && typeof entry.mcpSkill !== 'boolean') problems.push(`mcpSkill 형식 오류: ${entry.repo}`);
     if (typeof entry.commercialUse !== 'boolean') problems.push(`commercialUse 형식 오류: ${entry.repo}`);
   }
 
