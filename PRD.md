@@ -1,7 +1,7 @@
 # K-OSS Directory — 기획서 (PRD v0.2)
 
 > 한국 개발자가 만든, 한국어로 쓸 수 있는 오픈소스를 한 화면에서 찾는 디렉토리.
-> 저장소: `YunhuPark/k-oss-directory` · 작성일 2026-11-26 · v0.2 갱신 2026-11-26 · 상태: 40개 수록 · Cloudflare Pages 배포
+> 저장소: `YunhuPark/k-oss-directory` · 작성일 2026-11-26 · v0.2 갱신 2026-11-26 · 상태: 93개 수록 · Cloudflare Pages 배포
 
 ---
 
@@ -72,7 +72,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 | ID | 요구사항 | 우선순위 | MVP |
 |---|---|---|---|
-| FR-1 | 40개 시드 데이터(실제 GitHub API로 검증) 표시 | P0 | ✅ |
+| FR-1 | 93개 시드 데이터(실제 GitHub API로 검증) 표시 | P0 | ✅ |
 | FR-2 | 실시간 검색(한국어 부분 일치, 대소문자 무시) | P0 | ✅ |
 | FR-3 | 카테고리 탭 전환 | P0 | ✅ |
 | FR-4 | 필터 칩 4종 + 다중 선택 | P0 | ✅ |
@@ -192,7 +192,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 - 단계: checkout → `node scripts/sync_repos.mjs` (env `GITHUB_TOKEN`) → `catalog.json` 변경 시 커밋·푸시
 - 실패 처리: 한 저장소 조회가 실패해도 **직전 값 유지**로 계속 진행하고, 최종 실패율을 로그·요약에 남긴다. 전 저장소 실패 시에만 워크플로 실패(빈 데이터로 사이트가 비는 것을 막는다).
 
-## 9. 시드 구성 (현재 40개)
+## 9. 시드 구성 (현재 93개)
 
 **1차 16개(MVP, 2026-11-26 GitHub API로 존재·스타·라이선스·최근 푸시 직접 검증 완료)**
 국산 OSS 15개 + 직접 만든 1개(`YunhuPark/devorch`).
@@ -224,10 +224,18 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
    같은 조회에서 탈락: `tosspayments/browser-sdk`·`portone-io/server-sdk`(라이선스 없음), `abus-aikorea/voice-pro`(GPL-3.0), `code-yeongyu/oh-my-openagent`(NOASSERTION). 한국어 README만 번역해 둔 해외 인기 툴은 "국산" 전제를 지키려고 넣지 않았다.
 3. `work/notes/k-oss-candidates-2026-11-26.md`에서 실측 검증된 국내 19개(토스·네이버·라인·당근) + OFL-1.1 폰트 2개(`orioncactus/pretendard`, `naver/d2-coding-font`)를 추가했다.
 
-**현재 분포(2026-11-26 동기화 결과)**: 저장소 40개 · 프론트엔드 15 / 개발 도구 10 / 백엔드·인프라 9 / AI·데이터 5 / 학습·자료 1.
-판정: 한국어 문서 15 · 상업 무료 40 · Docker 7 · 최근 3개월 34 · 보관됨 3(`nhn/tui.editor`, `kakaobrain/pororo`, `supertone-oss-archive/supertonic`).
+**3차(2026-11-26) — 국내 조직 27곳 전수 조회 + 한국어 생태계 개인·커뮤니티 보강 → 93개.**
 
-**다음 배치 후보(추측 금지 — 투입 전 `gh api repos/{owner}/{repo}` 재검증)**: `toss/slash`(보관됨), `nhn/tui.calendar`·`tui.chart`·`tui.grid`(보관됨), `naver/ngrinder`(보관됨), `line/tsr`(보관됨), `naver/fe-news`·`toss/technical-writing`(라이선스 미명시), `spoqa/spoqa-han-sans`(OFL), `kakao/buffalo`(6개월+ 미갱신), `naver/dust3r`·`naver/mast3r`(비상업 라이선스).
+1. `gh repo list <org> --limit 200`으로 국내 기업·팀 조직 27곳의 공개 저장소 **1,763개**를 수집했다(존재하는 조직만: 토스·네이버·카카오·카카오페이·카카오브레인·카카오뱅크·당근·라인·우아한테크코스·우아한테크코스팀·NHN·스포카·버킷플레이스·야놀자·무신사·리디·뱅크샐러드·데브시스터즈·하이퍼커넥트·엔씨소프트·쿠팡·에이비일팔공·직방·매스프레소·버즈빌·SK텔레콤·업스테이지).
+   조회되지 않은 조직은 실제로 없거나 공개 저장소가 없다: `kakaomobility`·`kurly`·`Watcha`·`netmarble`·`smilegate`·`nexon`·`dunamu`·`class101`·`remind`·`vling`·`smartstudy`·`kostat`·`bank-salad`·`woowahan-tech`·`yanolja-org`. `upstage`는 2013년 CSS 라이브러리를 올린 동명의 무관 조직이어서 제외했다.
+2. 아카이브·포크·비허용 라이선스를 걸러 **483개**가 남았고, 그중 실무에 붙일 수 있는 38개를 15개 조직에서 골랐다. 후보는 `gh api repos/{owner}/{repo}`로 존재·`archived:false`·SPDX 라이선스를 한 번 더 확인했다.
+3. `gh search repos`(topic:korean, topic:korea, 한국어, hangul, topic:hangul)로 한국어 생태계 개인·커뮤니티 저장소를 보강해 15개를 더했다 — 한글 오토마타·정규식(`e-/Hangul.js`, `bluewings/korean-regexp`), 형태소 분석(`bab2min/Kiwi`, `open-korean-text/open-korean-text`, `ongjin/garu`), 공문서·공휴일(`chrisryugj/kordoc`, `Indosaram/hwpers`, `hyunbinseo/holidays-kr`), 한국어 학습 자료(`teddylee777/langchain-kr`, `PyTorchKR/tutorials-kr`, `golangkorea/effective-go`, `yybmion/public-apis-4Kr`).
+4. 탈락 사례(실측 근거): `toss/slash`(보관됨), `tosspayments/browser-sdk`·`toss/tossface`·`kakaobrain/kogpt`·`konlpy/konlpy`·`lovit/soynlp`·`dl0312/open-apis-korea`(라이선스 미명시/`other`), `IBM/tensorflow-hangul-recognition`(보관됨), `Riey/kime`·`libhangul/libhangul`(GPL/LGPL), `naver/dust3r`·`naver/mast3r`(비상업).
+
+**현재 분포(2026-11-26 동기화 결과)**: 저장소 93개 · 프론트엔드 26 / 개발 도구 26 / 백엔드·인프라 19 / AI·데이터 13 / 학습·자료 9.
+판정: 한국어 문서 40 · 상업 무료 93 · Docker 12 · 최근 3개월 56 · 보관됨 3(`nhn/tui.editor`, `kakaobrain/pororo`, `supertone-oss-archive/supertonic`).
+
+**다음 배치 후보(추측 금지 — 투입 전 `gh api repos/{owner}/{repo}` 재검증)**: 실측만 해 두고 이번에 넣지 않은 `kakao/detek`·`line/stellite`·`coupang/spring-data-requery`·`naver/egjs-view3d`·`toss/yarn-plugin-workspace-since`(라이선스 미명시), `kakaobrain/torchgpipe`·`kakaobrain/fast-autoaugment`·`hyperconnect/TC-ResNet`(연구 재현 코드라 후순위). 계속 제외: `toss/slash`·`nhn/tui.calendar`·`naver/ngrinder`·`line/tsr`(보관됨), `naver/fe-news`·`toss/technical-writing`(라이선스 미명시), `naver/dust3r`·`naver/mast3r`(비상업).
 
 > 시드 확장 원칙: **스타 수보다 "지금 실무에 붙일 수 있는가"**. 3년 이상 커밋이 없고 대체재가 있으면 제외하거나 `보관됨`으로 표시한다.
 > 배치 단위는 주 1회 5~7개. 한 번에 많이 넣으면 검수 품질이 서비스 품질을 앞지른다.
@@ -254,7 +262,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 | 단계 | 내용 | 판단 기준 |
 |---|---|---|
 | M1 (이번) | 16개 시드 + 탐색·필터·상세·제보 + 자동 동기화 | 배포 URL 동작, 모바일 가로 넘침 0 |
-| M2 | 태그 클릭 탐색, 상세 정적 페이지(`/r/{o}/{r}`), OG 이미지 (시드는 40개로 확장 완료) | 주간 방문 100 |
+| M2 | 태그 클릭 탐색, 상세 정적 페이지(`/r/{o}/{r}`), OG 이미지 (시드는 93개로 확장 완료) | 주간 방문 100 |
 | M3 | 주간 인기순(스타 증가량 스냅샷 저장), 개인화 없음 유지 | 데이터 100건 |
 | M4 | 다국어(영문 UI), 채용·기여 난이도(`good first issue` 수) 표시 | 제보 월 10건 |
 
@@ -270,7 +278,7 @@ GitHub 저장소 검색은 **필터는 있지만 "한국 것"을 정의해 주�
 
 ## 14. 완료 정의 (Definition of Done — M1)
 
-- [x] `data/repos.json` 40개, 전부 실제 API 조회로 검증
+- [x] `data/repos.json` 93개, 전부 실제 API 조회로 검증
 - [x] `public/` 정적 사이트가 `catalog.json`만으로 동작(서버·DB 없음)
 - [x] 검색·카테고리·필터 4종·정렬·상세 모달 동작
 - [x] 360px/1280px 헤드리스 브라우저 검증, 가로 넘침 0, 스크린샷 보관

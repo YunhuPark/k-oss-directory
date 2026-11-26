@@ -22,13 +22,13 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
   <img src="docs/screenshots/detail-1280.png" alt="상세 모달" width="520">
 </p>
 
-## 지금 수록된 저장소 (40개, 2026-11-26 GitHub API로 검증)
+## 지금 수록된 저장소 (93개, 2026-11-26 GitHub API로 검증)
 
-최근 배치(2026-11-26)에서 한 일:
+이번 배치(2026-11-26)에서 한 일:
 
-- 직접 만든 `YunhuPark/*` 저장소 10개를 목록에서 뺐습니다(큐레이션이 자기 홍보가 되지 않도록).
-- 사용자가 GitHub에서 **별표(Star)한 1,211개 저장소를 전수 조사**해 국산·한국어 기준에 맞는 4개를 넣었습니다.
-- 실측 검증을 마친 국내 오픈소스 19개와 OFL-1.1 폰트 2개를 추가했습니다.
+- 국내 기업·팀 조직 15곳(토스·네이버·카카오·카카오뱅크·라인·당근·우아한테크코스·스포카·하이퍼커넥트·엔씨소프트·데브시스터즈·뱅크샐러드·SK텔레콤·야놀자·리디)의 공개 저장소를 실측 조회해 38개를 추가했습니다.
+- 한국어 생태계 개인·커뮤니티 저장소(한글 처리·형태소 분석·공문서·공휴일·한국어 학습 자료) 15개를 더했습니다.
+- 40개 → **93개**. 추가한 53개 모두 `gh api repos/{owner}/{repo}`로 존재·아카이브 아님·상업 무료 라이선스를 다시 확인했습니다.
 
 | 저장소 | 만든 곳 | 분류 | ★ | 라이선스 | 한국어 문서 |
 |---|---|---|---|---|---|
@@ -39,44 +39,97 @@ K-OSS Directory는 **한국 팀·기업·개인 개발자의 저장소만** 모�
 | [naver/billboard.js](https://github.com/naver/billboard.js) | 네이버 | 프론트엔드 | 6k | MIT |  |
 | [line/armeria](https://github.com/line/armeria) | 라인 | 백엔드·인프라 | 5.2k | Apache-2.0 |  |
 | [orioncactus/pretendard](https://github.com/orioncactus/pretendard) | 개인 개발자 | 프론트엔드 | 3.7k | OFL-1.1 | ✅ |
+| [yybmion/public-apis-4Kr](https://github.com/yybmion/public-apis-4Kr) | 개인 개발자 | 학습·자료 | 3.6k | MIT | ✅ |
+| [chrisryugj/kordoc](https://github.com/chrisryugj/kordoc) | 개인 개발자 | 개발 도구 | 3.1k | MIT | ✅ |
+| [chrisryugj/korean-law-mcp](https://github.com/chrisryugj/korean-law-mcp) | 개인 개발자 | AI·데이터 | 2.9k | MIT | ✅ |
 | [naver/egjs-flicking](https://github.com/naver/egjs-flicking) | 네이버 | 프론트엔드 | 2.9k | MIT |  |
 | [naver/egjs-infinitegrid](https://github.com/naver/egjs-infinitegrid) | 네이버 | 프론트엔드 | 2.4k | MIT |  |
 | [jo-duchan/tapflow](https://github.com/jo-duchan/tapflow) | 개인 개발자 | 개발 도구 | 2.3k | MIT |  |
 | [naver/d2-coding-font](https://github.com/naver/d2-coding-font) | 네이버 | 프론트엔드 | 2.3k | OFL-1.1 |  |
 | [line/line-bot-sdk-python](https://github.com/line/line-bot-sdk-python) | 라인 | 백엔드·인프라 | 2.1k | Apache-2.0 |  |
+| [teddylee777/langchain-kr](https://github.com/teddylee777/langchain-kr) | 개인 개발자 | 학습·자료 | 2.1k | Apache-2.0 | ✅ |
+| [toss/frontend-fundamentals](https://github.com/toss/frontend-fundamentals) | 토스 | 학습·자료 | 2k | MIT |  |
 | [toss/es-hangul](https://github.com/toss/es-hangul) | 토스 | 프론트엔드 | 1.9k | MIT | ✅ |
 | [kakao/khaiii](https://github.com/kakao/khaiii) | 카카오 | AI·데이터 | 1.5k | Apache-2.0 | ✅ |
 | [kakaobrain/pororo](https://github.com/kakaobrain/pororo) | 카카오브레인 | AI·데이터 | 1.3k | Apache-2.0 | ✅ 보관됨 |
 | [daangn/seed-design](https://github.com/daangn/seed-design) | 당근 | 프론트엔드 | 1.2k | Apache-2.0 | ✅ |
 | [line/promgen](https://github.com/line/promgen) | 라인 | 백엔드·인프라 | 1.1k | MIT |  |
+| [line/line-bot-sdk-nodejs](https://github.com/line/line-bot-sdk-nodejs) | 라인 | 백엔드·인프라 | 1.1k | Apache-2.0 |  |
 | [toss/suspensive](https://github.com/toss/suspensive) | 토스 | 프론트엔드 | 1.1k | MIT |  |
 | [daangn/stackflow](https://github.com/daangn/stackflow) | 당근 | 프론트엔드 | 1k | MIT |  |
+| [woowacourse/back-end-roadmap](https://github.com/woowacourse/back-end-roadmap) | 우아한테크코스 | 학습·자료 | 990 | MIT | ✅ |
 | [line/kotlin-jdsl](https://github.com/line/kotlin-jdsl) | 라인 | 백엔드·인프라 | 826 | Apache-2.0 |  |
+| [bab2min/Kiwi](https://github.com/bab2min/Kiwi) | 개인 개발자 | AI·데이터 | 811 | Apache-2.0 | ✅ |
 | [line/line-bot-mcp-server](https://github.com/line/line-bot-mcp-server) | 라인 | AI·데이터 | 806 | Apache-2.0 |  |
 | [amondnet/vercel-action](https://github.com/amondnet/vercel-action) | 개인 개발자 | 개발 도구 | 764 | MIT |  |
 | [toss/overlay-kit](https://github.com/toss/overlay-kit) | 토스 | 프론트엔드 | 739 | MIT | ✅ |
+| [e-/Hangul.js](https://github.com/e-/Hangul.js) | 개인 개발자 | 프론트엔드 | 709 | MIT | ✅ |
 | [naver/fixture-monkey](https://github.com/naver/fixture-monkey) | 네이버 | 개발 도구 | 697 | Apache-2.0 | ✅ |
 | [line/centraldogma](https://github.com/line/centraldogma) | 라인 | 백엔드·인프라 | 675 | Apache-2.0 |  |
+| [open-korean-text/open-korean-text](https://github.com/open-korean-text/open-korean-text) | 커뮤니티 | AI·데이터 | 667 | Apache-2.0 | ✅ |
 | [line/line-fido2-server](https://github.com/line/line-fido2-server) | 라인 | 백엔드·인프라 | 587 | Apache-2.0 |  |
 | [toss/use-funnel](https://github.com/toss/use-funnel) | 토스 | 프론트엔드 | 586 | MIT |  |
+| [kakao/n2](https://github.com/kakao/n2) | 카카오 | AI·데이터 | 581 | Apache-2.0 |  |
+| [kakao/buffalo](https://github.com/kakao/buffalo) | 카카오 | AI·데이터 | 578 | Apache-2.0 |  |
 | [naver/kapture](https://github.com/naver/kapture) | 네이버 | AI·데이터 | 546 | BSD-3-Clause |  |
+| [hyunbinseo/holidays-kr](https://github.com/hyunbinseo/holidays-kr) | 개인 개발자 | 개발 도구 | 515 | MIT | ✅ |
+| [woowacourse/tecoble](https://github.com/woowacourse/tecoble) | 우아한테크코스 | 학습·자료 | 491 | MIT |  |
+| [toss/granite](https://github.com/toss/granite) | 토스 | 프론트엔드 | 481 | Apache-2.0 | ✅ |
 | [naver/scavenger](https://github.com/naver/scavenger) | 네이버 | 개발 도구 | 467 | Apache-2.0 |  |
+| [devsisters/shardcake](https://github.com/devsisters/shardcake) | 데브시스터즈 | 백엔드·인프라 | 449 | Apache-2.0 |  |
 | [vmc-inner-circle/k-style-ui-ux](https://github.com/vmc-inner-circle/k-style-ui-ux) | VMC 이너서클 | 개발 도구 | 418 | MIT | ✅ |
+| [spoqa/spoqa-han-sans](https://github.com/spoqa/spoqa-han-sans) | 스포카 | 프론트엔드 | 412 | OFL-1.1 | ✅ |
+| [line/abc-user-feedback](https://github.com/line/abc-user-feedback) | 라인 | 개발 도구 | 381 | Apache-2.0 |  |
+| [golangkorea/effective-go](https://github.com/golangkorea/effective-go) | Golang Korea | 학습·자료 | 380 | Apache-2.0 | ✅ |
+| [PyTorchKR/tutorials-kr](https://github.com/PyTorchKR/tutorials-kr) | PyTorch 한국 사용자 모임 | 학습·자료 | 375 | BSD-3-Clause | ✅ |
 | [line/decaton](https://github.com/line/decaton) | 라인 | 백엔드·인프라 | 373 | Apache-2.0 |  |
+| [line/garr](https://github.com/line/garr) | 라인 | 백엔드·인프라 | 372 | Apache-2.0 |  |
 | [toss/react-simplikit](https://github.com/toss/react-simplikit) | 토스 | 프론트엔드 | 361 | MIT | ✅ |
+| [samchon/payments](https://github.com/samchon/payments) | 개인 개발자 | 백엔드·인프라 | 359 | MIT | ✅ |
 | [toss/es-git](https://github.com/toss/es-git) | 토스 | 개발 도구 | 333 | MIT | ✅ |
 | [toss/h6s](https://github.com/toss/h6s) | 토스 | 개발 도구 | 319 | MIT | ✅ |
+| [naver/arcus](https://github.com/naver/arcus) | 네이버 | 백엔드·인프라 | 317 | Apache-2.0 |  |
+| [naver/spring-jdbc-plus](https://github.com/naver/spring-jdbc-plus) | 네이버 | 백엔드·인프라 | 293 | Apache-2.0 |  |
 | [toss/nestjs-aop](https://github.com/toss/nestjs-aop) | 토스 | 개발 도구 | 257 | MIT | ✅ |
+| [line/apng-drawable](https://github.com/line/apng-drawable) | 라인 | 프론트엔드 | 255 | Apache-2.0 |  |
+| [hangulize/hangulize](https://github.com/hangulize/hangulize) | 개인 개발자 | 개발 도구 | 251 | MIT | ✅ |
+| [bluewings/korean-regexp](https://github.com/bluewings/korean-regexp) | 개인 개발자 | 프론트엔드 | 231 | MIT | ✅ |
+| [kakao/actionbase](https://github.com/kakao/actionbase) | 카카오 | 백엔드·인프라 | 230 | Apache-2.0 |  |
 | [daangn/autopprof](https://github.com/daangn/autopprof) | 당근 | 백엔드·인프라 | 221 | Apache-2.0 |  |
+| [naver/pr-stats](https://github.com/naver/pr-stats) | 네이버 | 개발 도구 | 203 | Apache-2.0 | ✅ |
+| [woowacourse/prolog](https://github.com/woowacourse/prolog) | 우아한테크코스 | 학습·자료 | 201 | MIT |  |
+| [toss/apps-in-toss-harness](https://github.com/toss/apps-in-toss-harness) | 토스 | 개발 도구 | 194 | BSD-3-Clause | ✅ |
+| [kakao/kakao_flutter_sdk](https://github.com/kakao/kakao_flutter_sdk) | 카카오 | 개발 도구 | 194 | Apache-2.0 |  |
+| [Indosaram/hwpers](https://github.com/Indosaram/hwpers) | 개인 개발자 | 개발 도구 | 191 | MIT |  |
+| [naver/egjs-axes](https://github.com/naver/egjs-axes) | 네이버 | 프론트엔드 | 190 | MIT |  |
+| [ongjin/garu](https://github.com/ongjin/garu) | 개인 개발자 | AI·데이터 | 183 | Apache-2.0 | ✅ |
+| [ncsoft/CaPa](https://github.com/ncsoft/CaPa) | 엔씨소프트 | AI·데이터 | 165 | BSD-3-Clause |  |
+| [kakao/web2app](https://github.com/kakao/web2app) | 카카오 | 프론트엔드 | 164 | MIT |  |
+| [hyperconnect/HypeUI](https://github.com/hyperconnect/HypeUI) | 하이퍼커넥트 | 프론트엔드 | 149 | Apache-2.0 |  |
+| [daangn/KarrotListKit](https://github.com/daangn/KarrotListKit) | 당근 | 프론트엔드 | 146 | Apache-2.0 |  |
+| [naver/spring-batch-plus](https://github.com/naver/spring-batch-plus) | 네이버 | 백엔드·인프라 | 130 | Apache-2.0 |  |
+| [kakao/prevue](https://github.com/kakao/prevue) | 카카오 | 개발 도구 | 127 | Apache-2.0 | ✅ |
 | [naver/egjs-conveyer](https://github.com/naver/egjs-conveyer) | 네이버 | 프론트엔드 | 126 | MIT |  |
+| [kakaobank/KF-DeBERTa](https://github.com/kakaobank/KF-DeBERTa) | 카카오뱅크 | AI·데이터 | 123 | MIT | ✅ |
+| [naver/cfcs](https://github.com/naver/cfcs) | 네이버 | 프론트엔드 | 119 | MIT |  |
+| [banksalad/AXSnapshot](https://github.com/banksalad/AXSnapshot) | 뱅크샐러드 | 개발 도구 | 113 | MIT | ✅ |
+| [toss/docflow](https://github.com/toss/docflow) | 토스 | 개발 도구 | 106 | MIT | ✅ |
+| [naver/design-to-ui](https://github.com/naver/design-to-ui) | 네이버 | 개발 도구 | 106 | Apache-2.0 | ✅ |
 | [daangn/graplix](https://github.com/daangn/graplix) | 당근 | 백엔드·인프라 | 94 | MIT |  |
+| [daangn/icona](https://github.com/daangn/icona) | 당근 | 개발 도구 | 93 | MIT |  |
+| [toss/necto](https://github.com/toss/necto) | 토스 | 개발 도구 | 88 | MIT | ✅ |
+| [daangn/kinesumer](https://github.com/daangn/kinesumer) | 당근 | 백엔드·인프라 | 78 | Apache-2.0 |  |
+| [ridi/react-viewer](https://github.com/ridi/react-viewer) | 리디 | 프론트엔드 | 64 | MIT |  |
 | [daangn/urlpack](https://github.com/daangn/urlpack) | 당근 | 프론트엔드 | 61 | MIT |  |
+| [yanolja/ogem](https://github.com/yanolja/ogem) | 야놀자 | 백엔드·인프라 | 42 | Apache-2.0 |  |
 | [hanmariyang/giting-skills](https://github.com/hanmariyang/giting-skills) | Giting | 개발 도구 | 37 | MIT | ✅ |
+| [sktelecom/bomlens](https://github.com/sktelecom/bomlens) | SK텔레콤 | 개발 도구 | 31 | Apache-2.0 |  |
+| [sktelecom/onot](https://github.com/sktelecom/onot) | SK텔레콤 | 개발 도구 | 16 | Apache-2.0 |  |
 
 > 별점 수치는 `public/data/catalog.json`이 매일 자동 갱신됩니다. 위 표는 작성 시점 기준입니다.
 
-**분포**: 프론트엔드 15 · 개발 도구 10 · 백엔드·인프라 9 · AI·데이터 5 · 학습·자료 1.
-**판정**: 한국어 문서 15 · 상업 무료 라이선스 40 · Docker 7 · 최근 3개월 푸시 34 · 보관됨 3.
+**분포**: 프론트엔드 26 · AI·데이터 13 · 백엔드·인프라 19 · 개발 도구 26 · 학습·자료 9.
+**판정**: 한국어 문서 40 · 상업 무료 라이선스 93 · Docker 12 · 최근 3개월 푸시 56 · 보관됨 3.
 
 ## 구조
 
@@ -175,6 +228,7 @@ PUPPETEER_PATH=/path/to/puppeteer node scripts/ui_check.mjs --out downloads/k-os
 ## 로드맵
 
 - [x] 시드 40개로 확장 (국내 19개 + OFL 폰트 2개 + 별표 저장소 4개, 2026-11-26)
+- [x] 시드 93개로 대량 확장 (국내 15개 조직 38개 + 개인·커뮤니티 15개, 2026-11-26)
 - [ ] 태그 클릭 탐색, 상세 정적 페이지(`/r/{owner}/{repo}`), OG 이미지
 - [ ] 주간 인기순 (스타 증가량 스냅샷)
 
