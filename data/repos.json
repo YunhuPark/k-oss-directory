@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-26",
+  "updatedAt": "2026-11-28",
   "repos": [
     {
       "repo": "toss/es-toolkit",
@@ -49,6 +49,18 @@
         "레이아웃"
       ],
       "addedAt": "2026-11-26"
+    },
+    {
+      "repo": "danielwh2/sprite-stacking",
+      "vendor": "Daniel White",
+      "category": "tool",
+      "summary": "픽셀 아트의 윗면·측면·정면·뒷면 네 장을 층층이 깎아 쌓아, 어느 각도로 돌려도 선명한 가짜 3D 스프라이트로 바꾸는 Claude Code 스킬. 웹 캔버스·Godot·Unity·Phaser에 바로 넣는다.",
+      "tags": [
+        "Claude Code",
+        "픽셀 아트",
+        "가짜 3D"
+      ],
+      "addedAt": "2026-11-28"
     },
     {
       "repo": "daangn/stackflow",
